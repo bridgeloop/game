@@ -60,14 +60,12 @@ impl Camera {
 
 		// Rotate
 		self.yaw += Rad(input.rotate_horizontal) * input.sensitivity * dt;
-		self.pitch += Rad(-input.rotate_vertical) * input.sensitivity * dt;
+		println!("{:?}", Deg::from(self.yaw));
 
-		// Keep the self's angle from going too high/low.
-		if self.pitch < -Rad(std::f32::consts::FRAC_PI_2 - 0.0001) {
-			self.pitch = -Rad(std::f32::consts::FRAC_PI_2 - 0.0001);
-		} else if self.pitch > Rad(std::f32::consts::FRAC_PI_2 - 0.0001) {
-			self.pitch = Rad(std::f32::consts::FRAC_PI_2 - 0.0001);
-		}
+		let pitch = (self.pitch + Rad(-input.rotate_vertical) * input.sensitivity * dt).0;
+		let frac = std::f32::consts::FRAC_PI_2 - 0.0001;
+		
+		self.pitch = Rad(pitch.clamp(-Rad(frac).0, Rad(frac).0));
 	}
 }
 

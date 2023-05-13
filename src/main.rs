@@ -1,6 +1,6 @@
 // based on https://sotrh.github.io/learn-wgpu/
 
-use {winit::{event as Event, event_loop::{ControlFlow, EventLoop}, window::WindowBuilder}, std::process::ExitCode};
+use {winit::{event as Event, event_loop::{ControlFlow, EventLoop}, window::WindowBuilder}, std::{cmp::Ordering, process::ExitCode}};
 
 mod state;
 use state::State;
@@ -82,16 +82,38 @@ fn real_main() -> Result<(), &'static str> {
 		.with_title("game")
 		.build(&(event_loop))
 		.map_err(|_| "failed to create window")?;
+	fn area(size: winit::dpi::PhysicalSize<u32>) -> u32 {
+		size.width * size.height
+	}
+	let video_modes = window.current_monitor().unwrap().video_modes();
+	let video_mode = video_modes.max_by(|x, y| {
+		if area(x.size()) > area(y.size()) {
+			return Ordering::Greater;
+		} else if area(x.size()) < area(y.size()) {
+			return Ordering::Less;
+		}
+		if x.refresh_rate_millihertz() > y.refresh_rate_millihertz() {
+			return Ordering::Greater;
+		} else {
+			return Ordering::Less;
+		}
+	}).unwrap();
+	window.set_fullscreen(
+		Some(winit::window::Fullscreen::Exclusive(video_mode))
+	);
+	window.set_cursor_visible(false);
 
 	let mut state = State::new(window)?;
-	let mut input = Input::new(1.0, 8.0);
+	let mut input = Input::new(1.0, 0.088 * 31.4);
 	let mut last_render_time = std::time::Instant::now();
+
+	let mut timer = std::time::Instant::now();
+	let mut frames = 0;
 
 	event_loop.run(move |event, _, flow| {
 		*flow = ControlFlow::Poll;
 		let window = state.window();
 		window.set_cursor_grab(winit::window::CursorGrabMode::Confined).expect("failed to lock cursor");
-
 		match event {
 			Event::Event::DeviceEvent {
 				event: Event::DeviceEvent::MouseMotion { delta, },
@@ -134,6 +156,15 @@ fn real_main() -> Result<(), &'static str> {
 
 					_ => (),
 				};
+
+				frames += 1;
+
+				let now = std::time::Instant::now();
+				if now.duration_since(timer).as_millis() > 1000 {
+					timer = now;
+					println!("{:?}", frames);
+					frames = 0;
+				}
 			}
 			_ => (),
 		};

@@ -85,27 +85,19 @@ impl State {
 			&(wgpu::util::BufferInitDescriptor {
 				label: Some("Vertex Buffer"),
 				contents: bytemuck::cast_slice(&[
-					Vertex { position: [0.0, 0.5, -0.5], color: [0.0, 0.0, 0.1] }, // top
-					Vertex { position: [-0.5, -0.5, -1.0], color: [0.0, 1.0, 0.0] }, // left
-					Vertex { position: [-0.5, -0.5, 0.0], color: [1.0, 0.0, 0.0] }, // right
+					Vertex { position: [0.0, 0.0, 0.0], color: [0.0, 1.0, 1.0] }, // top
+					Vertex { position: [5.0, 0.0, -5.0], color: [0.0, 1.0, 0.0] }, // left
+					Vertex { position: [0.0, 0.0, -5.0], color: [0.0, 1.0, 0.0] }, // right
 
-					Vertex { position: [0.0, 0.5, -0.5], color: [1.0, 0.0, 0.0] }, // top
-					Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] }, // left
-					Vertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] }, // right
-
-					Vertex { position: [0.0, 0.5, -0.5], color: [0.0, 1.0, 0.0] }, // top
-					Vertex { position: [0.5, -0.5, 0.0], color: [1.0, 0.0, 0.0] }, // left
-					Vertex { position: [0.5, -0.5, -1.0], color: [0.0, 0.0, 1.0] }, // right
-
-					Vertex { position: [0.0, 0.5, -0.5], color: [1.0, 0.0, 0.0] }, // top
-					Vertex { position: [0.5, -0.5, -1.0], color: [0.0, 0.0, 1.0] }, // left
-					Vertex { position: [-0.5, -0.5, -1.0], color: [0.0, 1.0, 0.0] }, // right
+					Vertex { position: [0.0, 0.0, 0.0], color: [0.0, 1.0, 0.0] }, // top
+					Vertex { position: [5.0, 0.0, -0.0], color: [0.0, 1.0, 0.0] }, // left
+					Vertex { position: [5.0, 0.0, -5.0], color: [0.0, 1.0, 0.0] }, // right
 				]),
 				usage: wgpu::BufferUsages::VERTEX,
 			})
 		);
 
-		let camera = Camera::new(size, (0.0, 0.0, 0.0), Deg(-90.0), Deg(-20.0));
+		let camera = Camera::new(size, (0.25, 1.0, 0.0), Deg(0.0), Deg(0.0));
 
 		let camera_bind_group_layout = &(device.create_bind_group_layout(&(wgpu::BindGroupLayoutDescriptor {
 			entries: &[
@@ -246,7 +238,7 @@ impl State {
 
 			render_pass.set_bind_group(0, &(self.camera_bind_group), &[]);
 			render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-			render_pass.draw(0..12, 0..1);
+			render_pass.draw(0..6, 0..1);
 		}
 
 		// submit will accept anything that implements IntoIter
