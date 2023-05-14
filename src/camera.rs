@@ -5,8 +5,8 @@ use crate::Input;
 #[derive(Debug)]
 pub struct Camera {
 	pub position: Point3<f32>,
-	pub yaw: Rad<f32>,
-	pub pitch: Rad<f32>,
+	pub rot_x: Rad<f32>,
+	pub rot_y: Rad<f32>,
 
 	aspect: f32,
 	fovy: Rad<f32>,
@@ -23,13 +23,13 @@ impl Camera {
 		dimensions: winit::dpi::PhysicalSize<u32>,
 
 		position: V,
-		yaw: Y,
-		pitch: P
+		rot_x: Y,
+		rot_y: P
 	) -> Self {
 		Self {
 			position: position.into(),
-			yaw: yaw.into(),
-			pitch: pitch.into(),
+			rot_x: rot_x.into(),
+			rot_y: rot_y.into(),
 
 			aspect: dimensions.width as f32 / dimensions.height as f32,
 			fovy: Deg(45.0).into(),
@@ -48,7 +48,7 @@ impl Camera {
 		let dt = dt.as_secs_f32();
 
 		// Move forward/backward and left/right
-		let (yaw_sin, yaw_cos) = self.yaw.0.sin_cos();
+		let (yaw_sin, yaw_cos) = self.rot_x.0.sin_cos();
 		let forward = Vector3::new(yaw_cos, 0.0, yaw_sin).normalize();
 		let right = Vector3::new(-yaw_sin, 0.0, yaw_cos).normalize();
 		self.position += forward * (input.amount_forward - input.amount_backward) * input.speed * dt;
@@ -59,13 +59,12 @@ impl Camera {
 		self.position.y += (input.amount_up - input.amount_down) * input.speed * dt;
 
 		// Rotate
-		self.yaw += Rad(input.rotate_horizontal) * input.sensitivity * dt;
-		println!("{:?}", Deg::from(self.yaw));
+		self.rot_x += Rad(input.rotate_horizontal) * input.sensitivity * dt;
 
-		let pitch = (self.pitch + Rad(-input.rotate_vertical) * input.sensitivity * dt).0;
+		let pitch = (self.rot_y + Rad(-input.rotate_vertical) * input.sensitivity * dt).0;
 		let frac = std::f32::consts::FRAC_PI_2 - 0.0001;
 		
-		self.pitch = Rad(pitch.clamp(-Rad(frac).0, Rad(frac).0));
+		self.rot_y = Rad(pitch.clamp(-Rad(frac).0, Rad(frac).0));
 	}
 }
 
@@ -94,8 +93,8 @@ impl<'a> CameraUniform {
 		}
 	}
 	pub fn set_view_projection_matrix(&self, queue: &wgpu::Queue, camera: &Camera) {
-		let (sin_pitch, cos_pitch) = camera.pitch.0.sin_cos();
-		let (sin_yaw, cos_yaw) = camera.yaw.0.sin_cos();
+		let (sin_yaw, cos_yaw) = camera.rot_x.0.sin_cos();
+		let (sin_pitch, cos_pitch) = camera.rot_y.0.sin_cos();
 
 		let target = Vector3::new(
 			cos_pitch * cos_yaw,
