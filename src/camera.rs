@@ -42,7 +42,7 @@ impl Camera {
 		self.aspect = dimensions.width as f32 / dimensions.height as f32;
 	}
 
-	pub fn update_pos(&mut self, input: &mut Input, dt: f32) {
+	pub fn update_pos(&mut self, input: &Input, dt: f32) {
 		let (yaw_sin, yaw_cos) = Rad::from(self.rot_x).0.sin_cos();
 		let forward = Vector3::new(yaw_cos, 0.0, yaw_sin).normalize();
 		let right = Vector3::new(-yaw_sin, 0.0, yaw_cos).normalize();
@@ -52,13 +52,13 @@ impl Camera {
 		self.position.y += (input.amount_up - input.amount_down) * (input.speed * dt);
 	}
 
-	pub fn update_rot(&mut self, input: &mut Input) {
+	pub fn update_rot(&mut self, input: &Input, sf: f32) {
+        // doesn't need dt because the input is not continuous.
 		let (dx, dy) = input.mouse_moved;
-		input.mouse_moved = (0.0, 0.0);
 
-		self.rot_x += Deg(dx * input.sens);
+		self.rot_x += Deg((dx / input.dots_per_deg) * sf);
 		let pitch_lim = 90.0 - 0.0001;
-		let pitch = self.rot_y.0 + (-dy * input.sens);
+		let pitch = self.rot_y.0 + ((-dy / input.dots_per_deg) * sf);
 		self.rot_y = Deg(pitch.clamp(-pitch_lim, pitch_lim));
 	}
 }

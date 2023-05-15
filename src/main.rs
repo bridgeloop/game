@@ -62,13 +62,11 @@ pub struct Input {
 	amount_down: f32,
 	mouse_moved: (f32, f32),
 	speed: f32,
-	sens: f32,
+	dots_per_deg: f32,
 }
 
 impl Input {
-	pub fn new(speed: f32, dots_multiplier: f32, dots_per_degree: f32) -> Self {
-		let dots_multiplier = 1.0; // 8.8 / 100.0;
-		let dots_per_degree = 20.46666666666667;
+	pub fn new(speed: f32, dots_per_360deg: f32) -> Self {
 		Self {
 			amount_left: 0.0,
 			amount_right: 0.0,
@@ -78,7 +76,7 @@ impl Input {
 			amount_down: 0.0,
 			mouse_moved: (0.0, 0.0),
 			speed,
-			sens: dots_multiplier / dots_per_degree,
+			dots_per_deg: dots_per_360deg / 360.0,
 		}
 	}
 
@@ -98,8 +96,7 @@ impl Input {
 				self.amount_right = amount;
 			}
 			VirtualKeyCode::Space => {
-				//self.amount_up = amount;
-				self.mouse_moved.0 = 7368.0 * amount;
+				self.amount_up = amount;
 			}
 			VirtualKeyCode::Semicolon => {
 				self.amount_down = amount;
@@ -153,15 +150,9 @@ fn real_main() -> Result<(), &'static str> {
 	let mut fullscreen = set_fullscreen(false, &(window), &mut(cursor_locked));
 
 	let mut state = State::new(window)?;
-	let mut input = Input::new(
-		1.0,
-		8.8 / 100.0,
-		// i don't want the sensitivity to be tied to the resolution, though.
-		1.8
-	);
+	let mut input = Input::new(1.0, 7368.0);
 
 	let mut total_elapsed = 0.0;
-	let mut timer = Instant::now();
 	let mut frames = 0;
 
 	let mut prev_render = Instant::now();
@@ -227,19 +218,20 @@ fn real_main() -> Result<(), &'static str> {
 				total_elapsed += elapsed;
                 prev_render = Instant::now();
 
-                // doesn't need dt because
-                // the input is not continuous.
-                // FIXME: should this be done _after_ updating the camera's position? (updating the position depends on the camera's x rotation.)
-                state.camera.update_rot(&mut(input));
-
                 const TIMESTEP: f32 = 1.0 / 60.0;
 
+                let mut interpolate = 1.0;
+                let sf = interpolate / (elapsed / TIMESTEP);
 
                 while elapsed >= TIMESTEP {
-                	state.camera.update_pos(&mut(input), TIMESTEP);
+                	state.camera.update_pos(&(input), TIMESTEP);
+                	state.camera.update_rot(&(input), sf);
                 	elapsed -= TIMESTEP;
+                	interpolate -= sf;
                 }
-                state.camera.update_pos(&mut(input), elapsed);
+                state.camera.update_pos(&(input), elapsed);
+                state.camera.update_rot(&(input), interpolate);
+                input.mouse_moved = (0.0, 0.0);
 
 	            state.window().request_redraw();
 			}
@@ -254,10 +246,8 @@ fn real_main() -> Result<(), &'static str> {
 				};
 
 				frames += 1;
-				let time = timer.elapsed().as_millis();
-				if time > 1000 {
-					timer = Instant::now();
-					println!("frames in the past {time}ms: {:?}. {total_elapsed}", frames);
+				if total_elapsed >= 1.0 {
+					println!("frames in the past {total_elapsed}: {frames:?}");
 					frames = 0;
 					total_elapsed = 0.0;
 				}
