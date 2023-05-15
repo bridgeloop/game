@@ -30,6 +30,17 @@ i think it should hit the wait though
 i think updating the dns shit should be done by a separate program/shell script
 */
 
+/*
+https://gamingsmart.com/mouse-sensitivity-converter/fortnite/
+game sens: 8.8%
+
+var dpi = 800;
+var inches_per_360dg = 9.21;
+var inches_per_1dg = inches_per_360dg / 360;
+
+var dots_per_1dg = inches_per_1dg * dpi;
+*/
+
 use {winit::{event as Event, event_loop::{ControlFlow, EventLoop}, window::WindowBuilder}, std::{cmp::Ordering, process::ExitCode}};
 
 mod state;
@@ -56,6 +67,8 @@ pub struct Input {
 
 impl Input {
 	pub fn new(speed: f32, dots_multiplier: f32, dots_per_degree: f32) -> Self {
+		let dots_multiplier = 1.0; // 8.8 / 100.0;
+		let dots_per_degree = 20.46666666666667;
 		Self {
 			amount_left: 0.0,
 			amount_right: 0.0,
@@ -85,7 +98,8 @@ impl Input {
 				self.amount_right = amount;
 			}
 			VirtualKeyCode::Space => {
-				self.amount_up = amount;
+				//self.amount_up = amount;
+				self.mouse_moved.0 = 7368.0 * amount;
 			}
 			VirtualKeyCode::Semicolon => {
 				self.amount_down = amount;
@@ -143,7 +157,7 @@ fn real_main() -> Result<(), &'static str> {
 		1.0,
 		8.8 / 100.0,
 		// i don't want the sensitivity to be tied to the resolution, though.
-		1920.0 / 360.0
+		1.8
 	);
 
 	let mut total_elapsed = 0.0;
@@ -204,8 +218,8 @@ fn real_main() -> Result<(), &'static str> {
 			Event::Event::DeviceEvent {
 				event: Event::DeviceEvent::MouseMotion { delta, }, ..
 			} if cursor_locked => {
-				input.mouse_moved.0 += delta.0 as f32;
-				input.mouse_moved.1 += delta.1 as f32;
+				input.mouse_moved.0 = delta.0 as f32;
+				input.mouse_moved.1 = delta.1 as f32;
 			}
 
 			Event::Event::MainEventsCleared => {
