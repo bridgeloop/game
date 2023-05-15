@@ -1,8 +1,5 @@
-use std::time::Duration;
-
 use cgmath::Deg;
 use winit::window::Window;
-use crate::Input;
 use wgpu::{util::DeviceExt};
 
 use crate::{Camera, camera::CameraUniform};
@@ -19,7 +16,7 @@ pub struct State {
 
 	vertex_buffer: wgpu::Buffer,
 
-	camera: Camera,
+	pub camera: Camera,
 	camera_uniform: CameraUniform,
 	camera_bind_group: wgpu::BindGroup,
 }
@@ -72,7 +69,7 @@ impl State {
 					.ok_or("no srgb surface")?,
 				width: size.width,
 				height: size.height,
-				present_mode: caps.present_modes[0],
+				present_mode: wgpu::PresentMode::AutoNoVsync, // caps.present_modes[0],
 				alpha_mode: caps.alpha_modes[0],
 				view_formats: vec![],
 			}
@@ -97,7 +94,7 @@ impl State {
 			})
 		);
 
-		let camera = Camera::new(size, (0.25, 1.0, 0.0), Deg(0.0), Deg(0.0));
+		let camera = Camera::new(size, (0.25, 1.0, 0.0), Deg(0.0), Deg(-90.0));
 
 		let camera_bind_group_layout = &(device.create_bind_group_layout(&(wgpu::BindGroupLayoutDescriptor {
 			entries: &[
@@ -210,8 +207,7 @@ impl State {
 		self.camera.reconfigure(new_size);
 	}
 
-	pub fn update(&mut self, input: &Input, dt: Duration) {
-		self.camera.update(input, dt);
+	pub fn update(&mut self) {
 		self.camera_uniform.set_view_projection_matrix(&(self.queue), &(self.camera));
 	}
 

@@ -44,27 +44,24 @@ impl Camera {
 		self.aspect = dimensions.width as f32 / dimensions.height as f32;
 	}
 
-	pub fn update(&mut self, input: &Input, dt: std::time::Duration) {
-		let dt = dt.as_secs_f32();
-
-		// Move forward/backward and left/right
+	pub fn update(&mut self, input: &mut Input, dt: f32) {
 		let (yaw_sin, yaw_cos) = self.rot_x.0.sin_cos();
 		let forward = Vector3::new(yaw_cos, 0.0, yaw_sin).normalize();
 		let right = Vector3::new(-yaw_sin, 0.0, yaw_cos).normalize();
-		self.position += forward * (input.amount_forward - input.amount_backward) * input.speed * dt;
-		self.position += right * (input.amount_right - input.amount_left) * input.speed * dt;
+		self.position += forward * (input.amount_forward - input.amount_backward) * (input.speed * dt);
+		self.position += right * (input.amount_right - input.amount_left) * (input.speed * dt);
 
-		// Move up/down. Since we don't use roll, we can just
-		// modify the y coordinate directly.
-		self.position.y += (input.amount_up - input.amount_down) * input.speed * dt;
+		self.position.y += (input.amount_up - input.amount_down) * (input.speed * dt);
 
-		// Rotate
-		self.rot_x += Rad(input.rotate_horizontal) * input.sensitivity * dt;
+		let (dx, dy) = input.mouse_moved;
+		input.mouse_moved = (0.0, 0.0);
 
-		let pitch = (self.rot_y + Rad(-input.rotate_vertical) * input.sensitivity * dt).0;
+		let dt = 1.0 / (1920.0 / 360.0);
+
+		self.rot_x += Deg(dx * input.sens * dt).into();
+		let pitch = Deg::from(self.rot_y) + Deg(-dy * input.sens * dt);
 		let frac = std::f32::consts::FRAC_PI_2 - 0.0001;
-		
-		self.rot_y = Rad(pitch.clamp(-Rad(frac).0, Rad(frac).0));
+		self.rot_y = Rad(Rad::from(pitch).0.clamp(-Rad(frac).0, Rad(frac).0));
 	}
 }
 
