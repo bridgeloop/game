@@ -1,5 +1,35 @@
 // based on https://sotrh.github.io/learn-wgpu/
 
+/*
+quality aiden messages:
+
+i fucking hate everything
+but i mean whatever
+mouse input is not continuous so i don't think that delta time should be a factor in rotating the camera
+(whereas keydown input is continuous)
+rn i have two factors going into sensitivty:
+- dots multiplier
+- dots per degree
+(dots are the unit of mouse input) 
+so like i have 8.8% dots multiplier
+and dots per degree at 1920/360
+this is where the problem is
+sens depends on resolution
+im not sure what fortnite does about this
+maybe they use a fixed amount of dots per degree?
+also im accumulating winit mousemotion 
+i've seen a tutorial doing mouse_x = mouse_delta.x
+but im doing mouse_x += mouse_delta.x
+im not sure which one is correct
+but mousemotion can be fired multiple times per frame
+so it's not like they're doing the same thing
+i think i'll actually have to read winit's code for this one
+-----
+also i want to add functionality to acmec to either (try to?) wait for dns updates, or actually add the dns txt record itself
+i think it should hit the wait though
+i think updating the dns shit should be done by a separate program/shell script
+*/
+
 use {winit::{event as Event, event_loop::{ControlFlow, EventLoop}, window::WindowBuilder}, std::{cmp::Ordering, process::ExitCode}};
 
 mod state;
@@ -183,13 +213,19 @@ fn real_main() -> Result<(), &'static str> {
 				total_elapsed += elapsed;
                 prev_render = Instant::now();
 
+                // doesn't need dt because
+                // the input is not continuous.
+                // FIXME: should this be done _after_ updating the camera's position? (updating the position depends on the camera's x rotation.)
+                state.camera.update_rot(&mut(input));
+
                 const TIMESTEP: f32 = 1.0 / 60.0;
 
+
                 while elapsed >= TIMESTEP {
-                	state.camera.update(&mut(input), TIMESTEP);
+                	state.camera.update_pos(&mut(input), TIMESTEP);
                 	elapsed -= TIMESTEP;
                 }
-                state.camera.update(&mut(input), elapsed);
+                state.camera.update_pos(&mut(input), elapsed);
 
 	            state.window().request_redraw();
 			}

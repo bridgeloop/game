@@ -17,19 +17,17 @@ pub struct Camera {
 impl Camera {
 	pub fn new<
 		V: Into<Point3<f32>>,
-		Y: Into<Deg<f32>>,
-		P: Into<Deg<f32>>,
 	>(
 		dimensions: winit::dpi::PhysicalSize<u32>,
 
 		position: V,
-		rot_x: Y,
-		rot_y: P
+		rot_x: Deg<f32>,
+		rot_y: Deg<f32>
 	) -> Self {
 		Self {
 			position: position.into(),
-			rot_x: rot_x.into(),
-			rot_y: rot_y.into(),
+			rot_x: rot_x,
+			rot_y: rot_y,
 
 			aspect: dimensions.width as f32 / dimensions.height as f32,
 			fovy: Deg(45.0),
@@ -44,7 +42,7 @@ impl Camera {
 		self.aspect = dimensions.width as f32 / dimensions.height as f32;
 	}
 
-	pub fn update(&mut self, input: &mut Input, dt: f32) {
+	pub fn update_pos(&mut self, input: &mut Input, dt: f32) {
 		let (yaw_sin, yaw_cos) = Rad::from(self.rot_x).0.sin_cos();
 		let forward = Vector3::new(yaw_cos, 0.0, yaw_sin).normalize();
 		let right = Vector3::new(-yaw_sin, 0.0, yaw_cos).normalize();
@@ -52,7 +50,9 @@ impl Camera {
 		self.position += right * (input.amount_right - input.amount_left) * (input.speed * dt);
 
 		self.position.y += (input.amount_up - input.amount_down) * (input.speed * dt);
+	}
 
+	pub fn update_rot(&mut self, input: &mut Input) {
 		let (dx, dy) = input.mouse_moved;
 		input.mouse_moved = (0.0, 0.0);
 
