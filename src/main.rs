@@ -21,7 +21,8 @@ pub struct Input {
 	amount_down: f32,
 	mouse_moved: (f32, f32),
 	speed: f32,
-	sens: f32,
+	dots_multiplier: f32,
+	dots_per_degree: f32,
 }
 
 impl Input {
@@ -35,7 +36,10 @@ impl Input {
 			amount_down: 0.0,
 			mouse_moved: (0.0, 0.0),
 			speed,
-			sens,
+			dots_multiplier: sens,
+			
+			// i don't want the sensitivity to be tied to the resolution, though.
+			dots_per_degree: 1920.0 / 360.0,
 		}
 	}
 
