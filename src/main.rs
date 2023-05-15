@@ -21,12 +21,11 @@ pub struct Input {
 	amount_down: f32,
 	mouse_moved: (f32, f32),
 	speed: f32,
-	dots_multiplier: f32,
-	dots_per_degree: f32,
+	sens: f32,
 }
 
 impl Input {
-	pub fn new(speed: f32, sens: f32) -> Self {
+	pub fn new(speed: f32, dots_multiplier: f32, dots_per_degree: f32) -> Self {
 		Self {
 			amount_left: 0.0,
 			amount_right: 0.0,
@@ -36,10 +35,7 @@ impl Input {
 			amount_down: 0.0,
 			mouse_moved: (0.0, 0.0),
 			speed,
-			dots_multiplier: sens,
-			
-			// i don't want the sensitivity to be tied to the resolution, though.
-			dots_per_degree: 1920.0 / 360.0,
+			sens: dots_multiplier / dots_per_degree,
 		}
 	}
 
@@ -113,7 +109,12 @@ fn real_main() -> Result<(), &'static str> {
 	let mut fullscreen = set_fullscreen(false, &(window), &mut(cursor_locked));
 
 	let mut state = State::new(window)?;
-	let mut input = Input::new(1.0, 8.8 / 100.0);
+	let mut input = Input::new(
+		1.0,
+		8.8 / 100.0,
+		// i don't want the sensitivity to be tied to the resolution, though.
+		1920.0 / 360.0
+	);
 
 	let mut total_elapsed = 0.0;
 	let mut timer = Instant::now();

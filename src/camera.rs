@@ -56,9 +56,9 @@ impl Camera {
 		let (dx, dy) = input.mouse_moved;
 		input.mouse_moved = (0.0, 0.0);
 
-		self.rot_x += Deg(dx * input.dots_multiplier / input.dots_per_degree);
+		self.rot_x += Deg(dx * input.sens);
 		let pitch_lim = 90.0 - 0.0001;
-		let pitch = self.rot_y.0 + (-dy * input.dots_multiplier / input.dots_per_degree);
+		let pitch = self.rot_y.0 + (-dy * input.sens);
 		self.rot_y = Deg(pitch.clamp(-pitch_lim, pitch_lim));
 	}
 }
