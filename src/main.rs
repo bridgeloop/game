@@ -41,116 +41,81 @@ var inches_per_1dg = inches_per_360dg / 360;
 var dots_per_1dg = inches_per_1dg * dpi;
 */
 
-use {winit::{event as Event, event_loop::{ControlFlow, EventLoop}, window::WindowBuilder}, std::{cmp::Ordering, process::ExitCode}};
+use {
+	std::{process::ExitCode, time::Instant},
+	winit::{
+		event_loop::{ControlFlow, EventLoop},
+		window::WindowBuilder,
+		event::{VirtualKeyCode, ElementState, WindowEvent}
+	},
+};
 
 mod state;
-use std::time::Instant;
+mod camera;
+mod input;
 
+use input::Input;
 use state::State;
 
-mod camera;
-use camera::Camera;
-use winit::{event::{VirtualKeyCode, ElementState, KeyboardInput, WindowEvent, MouseButton}, window::Window};
+fn handle_window_event(state: &mut State, event: WindowEvent) -> ControlFlow {
+	use WindowEvent::{*, KeyboardInput as KeyboardInputEvent};
+	use winit::event::{KeyboardInput, MouseButton};
 
-#[derive(Debug)]
-pub struct Input {
-	amount_left: f32,
-	amount_right: f32,
-	amount_forward: f32,
-	amount_backward: f32,
-	amount_up: f32,
-	amount_down: f32,
-	mouse_moved: (f32, f32),
-	speed: f32,
-	dots_per_deg: f32,
-}
-
-impl Input {
-	pub fn new(speed: f32, dots_per_360deg: f32) -> Self {
-		Self {
-			amount_left: 0.0,
-			amount_right: 0.0,
-			amount_forward: 0.0,
-			amount_backward: 0.0,
-			amount_up: 0.0,
-			amount_down: 0.0,
-			mouse_moved: (0.0, 0.0),
-			speed,
-			dots_per_deg: dots_per_360deg / 360.0,
+	match event {
+		MouseInput { state: elem_state, button, .. } => {
+			if button == MouseButton::Left && elem_state == ElementState::Pressed {
+				if !state.is_fullscreen() {
+					state.set_fullscreen(true);
+				} else if !state.is_focused() {
+					// is fullscreen but not focused
+					state.set_focus(true);
+				}
+			}
 		}
-	}
-
-	pub fn process_keyboard(&mut self, key: VirtualKeyCode, state: ElementState) {
-		let amount = if state == ElementState::Pressed { 1.0 } else { 0.0 };
-		match key {
-			VirtualKeyCode::I | VirtualKeyCode::Up => {
-				self.amount_forward = amount;
-			}
-			VirtualKeyCode::J | VirtualKeyCode::Left => {
-				self.amount_left = amount;
-			}
-			VirtualKeyCode::K | VirtualKeyCode::Down => {
-				self.amount_backward = amount;
-			}
-			VirtualKeyCode::L | VirtualKeyCode::Right => {
-				self.amount_right = amount;
-			}
-			VirtualKeyCode::Space => {
-				self.amount_up = amount;
-			}
-			VirtualKeyCode::Semicolon => {
-				self.amount_down = amount;
-			}
-			_ => ()
-		};
-	}
-}
-
-fn set_fullscreen(to: bool, window: &Window, cursor_locked: &mut bool) -> bool {
-	if to {
-		fn area(size: winit::dpi::PhysicalSize<u32>) -> u32 {
-			size.width * size.height
+		CursorLeft { .. } if state.is_focused() => {
+			state.set_focus(false);
 		}
-		let video_modes = window.current_monitor().expect("no monitor detected").video_modes();
-		let video_mode = video_modes.max_by(|x, y| {
-			if area(x.size()) > area(y.size()) {
-				return Ordering::Greater;
-			} else if area(x.size()) < area(y.size()) {
-				return Ordering::Less;
+		CloseRequested => {
+			return ControlFlow::Exit;
+		}
+		Resized(physical_size) => {
+			state.reconfigure(Some(physical_size));
+		}
+		ScaleFactorChanged { new_inner_size, .. } => {
+			state.reconfigure(Some(*new_inner_size));
+		}
+
+		KeyboardInputEvent {
+			input:
+				KeyboardInput {
+					virtual_keycode: Some(key),
+					state: elem_state,
+					..
+				},
+			..
+		} => match key {
+			VirtualKeyCode::Escape if elem_state == ElementState::Pressed => {
+				// toggle fullscreen
+				state.set_fullscreen(!state.is_fullscreen());
 			}
-			if x.refresh_rate_millihertz() > y.refresh_rate_millihertz() {
-				return Ordering::Greater;
-			} else {
-				return Ordering::Less;
-			}
-		}).expect("no video modes");
-		window.set_fullscreen(
-			Some(winit::window::Fullscreen::Exclusive(video_mode.clone()))
-		);
-		window.set_cursor_visible(false);
-		window.set_cursor_grab(winit::window::CursorGrabMode::Confined).expect("failed to lock cursor");
-	} else {
-		window.set_fullscreen(None);
-		window.set_cursor_visible(true);
-		window.set_cursor_grab(winit::window::CursorGrabMode::None).expect("failed to unlock cursor");
+			_ => state.process_key(key, elem_state),
+		}
+
+		_ => ()
 	}
 
-	*cursor_locked = to;
-	return to;
+	return ControlFlow::Poll;
 }
 
 fn real_main() -> Result<(), &'static str> {
 	let event_loop = EventLoop::new();
 	let window = WindowBuilder::new()
 		.with_title("game")
+		.with_fullscreen(None)
 		.build(&(event_loop))
 		.map_err(|_| "failed to create window")?;
 
-	let mut cursor_locked = false;
-	let mut fullscreen = set_fullscreen(false, &(window), &mut(cursor_locked));
-
-	let mut state = State::new(window)?;
-	let mut input = Input::new(1.0, 7368.0);
+	let mut state = State::new(window, Input::new(1.0, 7368.0))?;
 
 	let mut total_elapsed = 0.0;
 	let mut frames = 0;
@@ -158,85 +123,44 @@ fn real_main() -> Result<(), &'static str> {
 	let mut prev_render = Instant::now();
 
 	event_loop.run(move |event, _, flow| {
+		use winit::event::{Event::*, DeviceEvent::MouseMotion};
+
 		let window = state.window();
 		*flow = ControlFlow::Poll;
 
 		match event {
-			Event::Event::WindowEvent { window_id, event } if window_id == window.id() => match event {
-				WindowEvent::MouseInput { state, button, .. } => {
-					if button == MouseButton::Left && state == ElementState::Pressed {
-						if !fullscreen {
-							fullscreen = set_fullscreen(true, &(window), &mut(cursor_locked));
-						} else if !cursor_locked {
-							window.set_cursor_grab(winit::window::CursorGrabMode::Confined).expect("failed to lock cursor");
-							window.set_cursor_visible(false);
-							cursor_locked = true;
-						}
-					}
-				}
-				WindowEvent::CursorLeft { .. } if fullscreen => {
-					window.set_cursor_grab(winit::window::CursorGrabMode::None).expect("failed to unlock cursor");
-					window.set_cursor_visible(true);
-					cursor_locked = false;
-				}
-				WindowEvent::CloseRequested => {
-					*flow = ControlFlow::Exit;
-				}
-				WindowEvent::Resized(physical_size) => {
-					state.reconfigure(Some(physical_size));
-				}
-				WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-					state.reconfigure(Some(*new_inner_size));
-				}
-
-				WindowEvent::KeyboardInput {
-					input:
-						KeyboardInput {
-							virtual_keycode: Some(key),
-							state,
-							..
-						},
-					..
-				} => match key {
-					VirtualKeyCode::Escape if state == ElementState::Pressed => {
-						fullscreen = set_fullscreen(!fullscreen, &(window), &mut(cursor_locked));
-					}
-					_ => input.process_keyboard(key, state),
-				}
-
-				_ => ()
-			}
-			Event::Event::DeviceEvent {
-				event: Event::DeviceEvent::MouseMotion { delta, }, ..
-			} if cursor_locked => {
-				input.mouse_moved.0 = delta.0 as f32;
-				input.mouse_moved.1 = delta.1 as f32;
+			WindowEvent { window_id, event: window_event } if window_id == window.id() => {
+				*flow = handle_window_event(&mut(state), window_event);
 			}
 
-			Event::Event::MainEventsCleared => {
+			DeviceEvent {
+				event: MouseMotion { delta, }, ..
+			} if state.is_focused() => {
+				state.process_mouse_motion(delta);
+			}
+
+			MainEventsCleared => {
 				let mut elapsed = prev_render.elapsed().as_secs_f32();
 				total_elapsed += elapsed;
-                prev_render = Instant::now();
+				prev_render = Instant::now();
 
-                const TIMESTEP: f32 = 1.0 / 60.0;
+				const TIMESTEP: f32 = 1.0 / 60.0;
 
-                let mut interpolate = 1.0;
-                let sf = interpolate / (elapsed / TIMESTEP);
+				let mut interpolate = 1.0;
+				let sf = interpolate / (elapsed / TIMESTEP);
 
-                while elapsed >= TIMESTEP {
-                	state.camera.update_pos(&(input), TIMESTEP);
-                	state.camera.update_rot(&(input), sf);
-                	elapsed -= TIMESTEP;
-                	interpolate -= sf;
-                }
-                state.camera.update_pos(&(input), elapsed);
-                state.camera.update_rot(&(input), interpolate);
-                input.mouse_moved = (0.0, 0.0);
+				while elapsed >= TIMESTEP {
+					state.update_camera(TIMESTEP, sf);
 
-	            state.window().request_redraw();
+					elapsed -= TIMESTEP;
+					interpolate -= sf;
+				}
+				state.update_camera(elapsed, interpolate);
+				state.process_mouse_motion((0.0, 0.0));
+
+				state.window().request_redraw();
 			}
-			Event::Event::RedrawRequested(_) => {
-				state.update();
+			RedrawRequested(_) => {
 				match state.render() {
 					Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => state.reconfigure(None),
 					Err(wgpu::SurfaceError::OutOfMemory) => *flow = ControlFlow::ExitWithCode(1),
@@ -251,8 +175,8 @@ fn real_main() -> Result<(), &'static str> {
 					frames = 0;
 					total_elapsed = 0.0;
 				}
-            }
-            _ => (),
+			}
+			_ => (),
 		};
 
 		return;

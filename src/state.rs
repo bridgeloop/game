@@ -2,11 +2,15 @@ use cgmath::Deg;
 use winit::window::Window;
 use wgpu::{util::DeviceExt};
 
-use crate::{Camera, camera::CameraUniform};
+use crate::{camera::*, Input};
 
 pub struct State {
+	input: Input,
+
 	window: Window,
 	size: winit::dpi::PhysicalSize<u32>,
+	fullscreen: bool,
+	focused: bool,
 
 	surface: wgpu::Surface,
 	device: wgpu::Device,
@@ -16,7 +20,7 @@ pub struct State {
 
 	vertex_buffer: wgpu::Buffer,
 
-	pub camera: Camera,
+	camera: Camera,
 	camera_uniform: CameraUniform,
 	camera_bind_group: wgpu::BindGroup,
 }
@@ -29,7 +33,7 @@ struct Vertex {
 }
 
 impl State {
-	pub fn new(window: Window) -> Result<Self, &'static str> {
+	pub fn new(window: Window, input: Input) -> Result<Self, &'static str> {
 		let size = window.inner_size();
 
 		let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -176,6 +180,10 @@ impl State {
 		}));
 
 		return Ok(Self {
+			input,
+
+			fullscreen: false,
+			focused: false,
 			window,
 			size,
 
@@ -197,6 +205,63 @@ impl State {
 		return &(self.window);
 	}
 
+	pub fn set_focus(&mut self, to: bool) {
+		assert!((!self.fullscreen && !to) || self.fullscreen);
+		assert!(to != self.focused);
+
+		let window = self.window();
+		if to {
+			window.set_cursor_visible(false);
+			window.set_cursor_grab(winit::window::CursorGrabMode::Confined).expect("failed to lock cursor");
+		} else {
+			window.set_cursor_visible(true);
+			window.set_cursor_grab(winit::window::CursorGrabMode::None).expect("failed to unlock cursor");
+		}
+
+		self.focused = to;
+		return;
+	}
+	pub fn is_focused(&self) -> bool {
+		return self.focused;
+	}
+
+	pub fn set_fullscreen(&mut self, to: bool) {
+		assert!(to != self.fullscreen);
+
+		use std::cmp::Ordering;
+		let window = self.window();
+		if to {
+			fn area(size: winit::dpi::PhysicalSize<u32>) -> u32 {
+				size.width * size.height
+			}
+			let video_modes = window.current_monitor().expect("no monitor detected").video_modes();
+			let video_mode = video_modes.max_by(|x, y| {
+				if area(x.size()) > area(y.size()) {
+					return Ordering::Greater;
+				} else if area(x.size()) < area(y.size()) {
+					return Ordering::Less;
+				}
+				if x.refresh_rate_millihertz() > y.refresh_rate_millihertz() {
+					return Ordering::Greater;
+				} else {
+					return Ordering::Less;
+				}
+			}).expect("no video modes");
+			window.set_fullscreen(
+				Some(winit::window::Fullscreen::Exclusive(video_mode.clone()))
+			);
+		} else {
+			window.set_fullscreen(None);
+		}
+
+		self.fullscreen = to;
+		self.set_focus(to);
+		return;
+	}
+	pub fn is_fullscreen(&self) -> bool {
+		return self.fullscreen;
+	}
+
 	pub fn reconfigure(&mut self, new_size: Option<winit::dpi::PhysicalSize<u32>>) {
 		let new_size = new_size.unwrap_or(self.size);
 		assert!(new_size.width > 0 && new_size.height > 0);
@@ -205,13 +270,12 @@ impl State {
 		self.config.height = new_size.height;
 		self.surface.configure(&(self.device), &(self.config));
 		self.camera.reconfigure(new_size);
-	}
 
-	pub fn update(&mut self) {
-		self.camera_uniform.set_view_projection_matrix(&(self.queue), &(self.camera));
+		return;
 	}
 
 	pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+		self.camera_uniform.set_view_projection_matrix(&(self.queue), &(self.camera));
 		let output = self.surface.get_current_texture()?;
 		let view = output.texture.create_view(&(wgpu::TextureViewDescriptor::default()));
 		let mut encoder = self.device.create_command_encoder(&(wgpu::CommandEncoderDescriptor {
@@ -242,5 +306,19 @@ impl State {
 		output.present();
 
 		return Ok(());
+	}
+
+	pub fn update_camera(&mut self, dt: f32, sf: f32) {
+		self.camera.update_pos(&(self.input), dt);
+		self.camera.update_rot(&(self.input), sf);
+		return;
+	}
+	pub fn process_key(&mut self, key: winit::event::VirtualKeyCode, state: winit::event::ElementState) {
+		self.input.process_key(key, state);
+		return;
+	}
+	pub fn process_mouse_motion(&mut self, delta: (f64, f64)) {
+		self.input.process_mouse_motion(delta);
+		return;
 	}
 }

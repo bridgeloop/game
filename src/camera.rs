@@ -1,6 +1,6 @@
 use cgmath::{Vector3, Point3, InnerSpace, Deg, Rad};
 
-use crate::Input;
+use crate::input::Input;
 
 #[derive(Debug)]
 pub struct Camera {
@@ -53,7 +53,7 @@ impl Camera {
 	}
 
 	pub fn update_rot(&mut self, input: &Input, sf: f32) {
-        // doesn't need dt because the input is not continuous.
+		// doesn't need dt because the input is not continuous.
 		let (dx, dy) = input.mouse_moved;
 
 		self.rot_x += Deg((dx / input.dots_per_deg) * sf);
