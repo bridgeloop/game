@@ -114,6 +114,7 @@ fn real_main() -> Result<(), &'static str> {
 		.with_fullscreen(None)
 		.build(&(event_loop))
 		.map_err(|_| "failed to create window")?;
+	let window_id = window.id();
 
 	let mut state = State::new(window, Input::new(1.0, 7368.0))?;
 
@@ -124,12 +125,11 @@ fn real_main() -> Result<(), &'static str> {
 
 	event_loop.run(move |event, _, flow| {
 		use winit::event::{Event::*, DeviceEvent::MouseMotion};
-
-		let window = state.window();
 		*flow = ControlFlow::Poll;
 
 		match event {
-			WindowEvent { window_id, event: window_event } if window_id == window.id() => {
+			WindowEvent { window_id: event_window_id, event: window_event } => {
+				assert!(event_window_id == window_id);
 				*flow = handle_window_event(&mut(state), window_event);
 			}
 

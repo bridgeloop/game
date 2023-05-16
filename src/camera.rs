@@ -24,7 +24,7 @@ impl Camera {
 		rot_x: Deg<f32>,
 		rot_y: Deg<f32>
 	) -> Self {
-		Self {
+		return Self {
 			position: position.into(),
 			rot_x: rot_x,
 			rot_y: rot_y,
@@ -33,13 +33,14 @@ impl Camera {
 			fovy: Deg(45.0),
 			znear: 0.1,
 			zfar: 100.0,
-		}
+		};
 	}
 }
 
 impl Camera {
 	pub fn reconfigure(&mut self, dimensions: winit::dpi::PhysicalSize<u32>) {
 		self.aspect = dimensions.width as f32 / dimensions.height as f32;
+		return;
 	}
 
 	pub fn update_pos(&mut self, input: &Input, dt: f32) {
@@ -50,6 +51,8 @@ impl Camera {
 		self.position += right * (input.amount_right - input.amount_left) * (input.speed * dt);
 
 		self.position.y += (input.amount_up - input.amount_down) * (input.speed * dt);
+
+		return;
 	}
 
 	pub fn update_rot(&mut self, input: &Input, sf: f32) {
@@ -60,6 +63,8 @@ impl Camera {
 		let pitch_lim = 90.0 - 0.0001;
 		let pitch = self.rot_y.0 + ((-dy / input.dots_per_deg) * sf);
 		self.rot_y = Deg(pitch.clamp(-pitch_lim, pitch_lim));
+
+		return;
 	}
 }
 
@@ -76,7 +81,7 @@ impl<'a> CameraUniform {
 	const SIZE: usize = std::mem::size_of::<[[f32; 4]; 4]>();
 
 	pub fn new(device: &wgpu::Device) -> Self {
-		Self {
+		return Self {
 			buffer: device.create_buffer(
 				&(wgpu::BufferDescriptor {
 					label: Some("Camera Buffer"),
@@ -85,7 +90,7 @@ impl<'a> CameraUniform {
 					mapped_at_creation: false,
 				})
 			),
-		}
+		};
 	}
 	pub fn set_view_projection_matrix(&self, queue: &wgpu::Queue, camera: &Camera) {
 		let (sin_yaw, cos_yaw) = Rad::from(camera.rot_x).0.sin_cos();
@@ -101,8 +106,10 @@ impl<'a> CameraUniform {
 		let proj = cgmath::perspective(camera.fovy, camera.aspect, camera.znear, camera.zfar);
 		let transformed_proj: [[f32; 4]; 4] = (Self::OPENGL_TO_WGPU_MATRIX * proj * view).into();
 		queue.write_buffer(&(self.buffer), 0, bytemuck::cast_slice(&(transformed_proj)));
+
+		return;
 	}
 	pub fn as_entire_binding(&self) -> wgpu::BindingResource {
-		self.buffer.as_entire_binding()
+		return self.buffer.as_entire_binding();
 	}
 }

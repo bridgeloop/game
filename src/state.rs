@@ -227,8 +227,10 @@ impl State {
 
 	pub fn set_fullscreen(&mut self, to: bool) {
 		assert!(to != self.fullscreen);
-
 		use std::cmp::Ordering;
+
+		self.fullscreen = to;
+		
 		let window = self.window();
 		if to {
 			fn area(size: winit::dpi::PhysicalSize<u32>) -> u32 {
@@ -250,12 +252,14 @@ impl State {
 			window.set_fullscreen(
 				Some(winit::window::Fullscreen::Exclusive(video_mode.clone()))
 			);
+			self.set_focus(true);
 		} else {
 			window.set_fullscreen(None);
+			if self.focused {
+				self.set_focus(false);
+			}
 		}
 
-		self.fullscreen = to;
-		self.set_focus(to);
 		return;
 	}
 	pub fn is_fullscreen(&self) -> bool {
@@ -314,11 +318,9 @@ impl State {
 		return;
 	}
 	pub fn process_key(&mut self, key: winit::event::VirtualKeyCode, state: winit::event::ElementState) {
-		self.input.process_key(key, state);
-		return;
+		return self.input.process_key(key, state);
 	}
 	pub fn process_mouse_motion(&mut self, delta: (f64, f64)) {
-		self.input.process_mouse_motion(delta);
-		return;
+		return self.input.process_mouse_motion(delta);
 	}
 }

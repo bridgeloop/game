@@ -15,7 +15,7 @@ pub struct Input {
 
 impl Input {
 	pub fn new(speed: f32, dots_per_360deg: f32) -> Self {
-		Self {
+		return Self {
 			amount_left: 0.0,
 			amount_right: 0.0,
 			amount_forward: 0.0,
@@ -25,7 +25,7 @@ impl Input {
 			mouse_moved: (0.0, 0.0),
 			speed,
 			dots_per_deg: dots_per_360deg / 360.0,
-		}
+		};
 	}
 
 	pub fn process_key(&mut self, key: VirtualKeyCode, state: ElementState) {
@@ -49,11 +49,13 @@ impl Input {
 			VirtualKeyCode::Semicolon => {
 				self.amount_down = amount;
 			}
-			_ => ()
+			_ => (),
 		};
+		return;
 	}
 
 	pub fn process_mouse_motion(&mut self, (dx, dy): (f64, f64)) {
 		self.mouse_moved = (dx as f32, dy as f32);
+		return;
 	}
 }
