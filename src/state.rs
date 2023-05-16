@@ -211,11 +211,13 @@ impl State {
 
 		let window = self.window();
 		if to {
+			drop(window
+				.set_cursor_grab(winit::window::CursorGrabMode::Confined)
+				.or_else(|_| window.set_cursor_grab(winit::window::CursorGrabMode::Locked)));
 			window.set_cursor_visible(false);
-			window.set_cursor_grab(winit::window::CursorGrabMode::Confined).expect("failed to lock cursor");
 		} else {
-			window.set_cursor_visible(true);
 			window.set_cursor_grab(winit::window::CursorGrabMode::None).expect("failed to unlock cursor");
+			window.set_cursor_visible(true);
 		}
 
 		self.focused = to;
@@ -285,25 +287,26 @@ impl State {
 		let mut encoder = self.device.create_command_encoder(&(wgpu::CommandEncoderDescriptor {
 			label: Some("Render Encoder"),
 		}));
-		{
-			let mut render_pass = encoder.begin_render_pass(&(wgpu::RenderPassDescriptor {
-				label: Some("Render Pass"),
-				color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-					view: &(view),
-					resolve_target: None,
-					ops: wgpu::Operations {
-						load: wgpu::LoadOp::Clear(Default::default()),
-						store: true,
-					},
-				})],
-				depth_stencil_attachment: None,
-			}));
-			render_pass.set_pipeline(&(self.render_pipeline));
 
-			render_pass.set_bind_group(0, &(self.camera_bind_group), &[]);
-			render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-			render_pass.draw(0..6, 0..1);
-		}
+		let mut render_pass = encoder.begin_render_pass(&(wgpu::RenderPassDescriptor {
+			label: Some("Render Pass"),
+			color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+				view: &(view),
+				resolve_target: None,
+				ops: wgpu::Operations {
+					load: wgpu::LoadOp::Clear(Default::default()),
+					store: true,
+				},
+			})],
+			depth_stencil_attachment: None,
+		}));
+		render_pass.set_pipeline(&(self.render_pipeline));
+
+		render_pass.set_bind_group(0, &(self.camera_bind_group), &[]);
+		render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+		render_pass.draw(0..6, 0..1);
+
+		drop(render_pass);
 
 		// submit will accept anything that implements IntoIter
 		self.queue.submit(std::iter::once(encoder.finish()));

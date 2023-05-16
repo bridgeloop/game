@@ -98,10 +98,10 @@ fn handle_window_event(state: &mut State, event: WindowEvent) -> ControlFlow {
 				// toggle fullscreen
 				state.set_fullscreen(!state.is_fullscreen());
 			}
-			_ => state.process_key(key, elem_state),
+			_  => if state.is_focused() { state.process_key(key, elem_state); }
 		}
 
-		_ => ()
+		_ => (),
 	}
 
 	return ControlFlow::Poll;
@@ -171,7 +171,7 @@ fn real_main() -> Result<(), &'static str> {
 
 				frames += 1;
 				if total_elapsed >= 1.0 {
-					println!("frames in the past {total_elapsed}: {frames:?}");
+					println!("frames in the past {total_elapsed}s: {frames:?}");
 					frames = 0;
 					total_elapsed = 0.0;
 				}
