@@ -18,7 +18,7 @@ pub struct State {
 	config: wgpu::SurfaceConfiguration,
 	render_pipeline: wgpu::RenderPipeline,
 
-	vertex_buffer: wgpu::Buffer,
+	plane_buffer: wgpu::Buffer,
 
 	camera: Camera,
 	camera_uniform: CameraUniform,
@@ -82,9 +82,9 @@ impl State {
 
 		let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
-		let vertex_buffer = device.create_buffer_init(
+		let plane_buffer = device.create_buffer_init(
 			&(wgpu::util::BufferInitDescriptor {
-				label: Some("Vertex Buffer"),
+				label: Some("plane_buffer"),
 				contents: bytemuck::cast_slice(&[
 					Vertex { position: [0.0, 0.0, 0.0], color: [0.0, 1.0, 1.0] }, // top
 					Vertex { position: [5.0, 0.0, -5.0], color: [0.0, 1.0, 0.0] }, // left
@@ -117,53 +117,52 @@ impl State {
 		})));
 
 		let render_pipeline_layout = device.create_pipeline_layout(&(wgpu::PipelineLayoutDescriptor {
-			label: Some("Render Pipeline Layout"),
+			label: Some("render_pipeline_layout"),
 			bind_group_layouts: &[camera_bind_group_layout],
 			push_constant_ranges: &[],
 		}));
-		let render_pipeline = 
-			device.create_render_pipeline(&(wgpu::RenderPipelineDescriptor {
-				label: Some("Render Pipeline"),
-				layout: Some(&(render_pipeline_layout)),
-				vertex: wgpu::VertexState {
-					module: &(shader),
-					entry_point: "vs_main",
-					buffers: &[
-						// index 0
-						wgpu::VertexBufferLayout {
-							array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-							step_mode: wgpu::VertexStepMode::Vertex,
-							attributes: &(wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3]),
-						},
-					],
-				},
-				fragment: Some(wgpu::FragmentState {
-					module: &(shader),
-					entry_point: "fs_main",
-					targets: &[Some(wgpu::ColorTargetState {
-						format: config.format,
-						blend: Some(wgpu::BlendState::REPLACE),
-						write_mask: wgpu::ColorWrites::ALL,
-					})],
-				}),
-				
-				primitive: wgpu::PrimitiveState {
-					topology: wgpu::PrimitiveTopology::TriangleList,
-					strip_index_format: None,
-					front_face: wgpu::FrontFace::Ccw,
-					cull_mode: Some(wgpu::Face::Back),
-					polygon_mode: wgpu::PolygonMode::Fill,
-					unclipped_depth: false,
-					conservative: false,
-				},
-				depth_stencil: None,
-				multisample: wgpu::MultisampleState {
-					count: 1,
-					mask: !0,
-					alpha_to_coverage_enabled: false,
-				},
-				multiview: None,
-			}));
+		let render_pipeline = device.create_render_pipeline(&(wgpu::RenderPipelineDescriptor {
+			label: Some("render_pipeline"),
+			layout: Some(&(render_pipeline_layout)),
+			vertex: wgpu::VertexState {
+				module: &(shader),
+				entry_point: "vs_main",
+				buffers: &[
+					// index 0
+					wgpu::VertexBufferLayout {
+						array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+						step_mode: wgpu::VertexStepMode::Vertex,
+						attributes: &(wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3]),
+					},
+				],
+			},
+			fragment: Some(wgpu::FragmentState {
+				module: &(shader),
+				entry_point: "fs_main",
+				targets: &[Some(wgpu::ColorTargetState {
+					format: config.format,
+					blend: Some(wgpu::BlendState::REPLACE),
+					write_mask: wgpu::ColorWrites::ALL,
+				})],
+			}),
+			
+			primitive: wgpu::PrimitiveState {
+				topology: wgpu::PrimitiveTopology::TriangleList,
+				strip_index_format: None,
+				front_face: wgpu::FrontFace::Ccw,
+				cull_mode: Some(wgpu::Face::Back),
+				polygon_mode: wgpu::PolygonMode::Fill,
+				unclipped_depth: false,
+				conservative: false,
+			},
+			depth_stencil: None,
+			multisample: wgpu::MultisampleState {
+				count: 1,
+				mask: !0,
+				alpha_to_coverage_enabled: false,
+			},
+			multiview: None,
+		}));
 
 		let camera_uniform = CameraUniform::new(&(device));
 		camera_uniform.set_view_projection_matrix(&(queue), &(camera));
@@ -193,7 +192,7 @@ impl State {
 			config,
 			render_pipeline,
 
-			vertex_buffer,
+			plane_buffer,
 
 			camera,
 			camera_uniform,
@@ -303,9 +302,9 @@ impl State {
 		render_pass.set_pipeline(&(self.render_pipeline));
 
 		render_pass.set_bind_group(0, &(self.camera_bind_group), &[]);
-		render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+		render_pass.set_vertex_buffer(0, self.plane_buffer.slice(..));
 		let n_vertices = (
-			self.vertex_buffer.size() / std::mem::size_of::<Vertex>() as BufferAddress
+			self.plane_buffer.size() / std::mem::size_of::<Vertex>() as BufferAddress
 		) as u32;
 		render_pass.draw(0..n_vertices, 0..1);
 
