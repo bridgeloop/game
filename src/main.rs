@@ -7,23 +7,22 @@ i fucking hate everything
 but i mean whatever
 mouse input is not continuous so i don't think that delta time should be a factor in rotating the camera
 (whereas keydown input is continuous)
-rn i have two factors going into sensitivty:
-- dots multiplier
-- dots per degree
-(dots are the unit of mouse input) 
-so like i have 8.8% dots multiplier
-and dots per degree at 1920/360
-this is where the problem is
-sens depends on resolution
-im not sure what fortnite does about this
-maybe they use a fixed amount of dots per degree?
-also im accumulating winit mousemotion 
-i've seen a tutorial doing mouse_x = mouse_delta.x
-but im doing mouse_x += mouse_delta.x
-im not sure which one is correct
+i'm not sure whether mouse_x = mouse_delta.x or mouse_x += mouse_delta.x is correct
 but mousemotion can be fired multiple times per frame
 so it's not like they're doing the same thing
 i think i'll actually have to read winit's code for this one
+-----
+several thousand models doesnt necessarily mean a lot of tris if i do it right
+this should perform similarly to using low-detail models
+i have to submit all of the vertices i want to draw anyway
+this will just decide which ones to draw, and which tris to (quickly) change into one larger tri
+there would be more data for the cpu to parse ofc
+but if the data is structured well (my own file format) then that should not be a problem
+also gonna use a bunch of caches to speed up subsequent similar renders
+further away shit will have less tris
+i feel like i might want some way to mark some tris as "important" though
+-----
+i wanna avoid submitting tris that the camera can't see (i.e. won't actually end up on the screen)
 -----
 also i want to add functionality to acmec to either (try to?) wait for dns updates, or actually add the dns txt record itself
 i think it should hit the wait though
