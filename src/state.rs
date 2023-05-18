@@ -1,6 +1,6 @@
 use cgmath::Deg;
 use winit::window::Window;
-use wgpu::{util::DeviceExt};
+use wgpu::{util::DeviceExt, BufferAddress};
 
 use crate::{camera::*, Input};
 
@@ -304,7 +304,10 @@ impl State {
 
 		render_pass.set_bind_group(0, &(self.camera_bind_group), &[]);
 		render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-		render_pass.draw(0..6, 0..1);
+		let n_vertices = (
+			self.vertex_buffer.size() / std::mem::size_of::<Vertex>() as BufferAddress
+		) as u32;
+		render_pass.draw(0..n_vertices, 0..1);
 
 		drop(render_pass);
 
