@@ -19,10 +19,13 @@ pub struct State {
 	render_pipeline: wgpu::RenderPipeline,
 
 	plane_buffer: wgpu::Buffer,
+	build_buffer: wgpu::Buffer,
 
 	camera: Camera,
 	camera_uniform: CameraUniform,
 	camera_bind_group: wgpu::BindGroup,
+
+	depth_view: wgpu::TextureView,
 }
 
 #[repr(C)]
@@ -30,6 +33,25 @@ pub struct State {
 struct Vertex {
 	position: [f32; 3],
 	color: [f32; 3],
+}
+
+fn depth_view(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> wgpu::TextureView {
+	let desc = wgpu::TextureDescriptor {
+		label: Some("texture_descriptor"),
+		size: wgpu::Extent3d {
+			width: config.width,
+			height: config.height,
+			depth_or_array_layers: 1,
+		},
+		mip_level_count: 1,
+		sample_count: 1,
+		dimension: wgpu::TextureDimension::D2,
+		format: wgpu::TextureFormat::Depth32Float,
+		usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+		view_formats: &[],
+	};
+	let texture = device.create_texture(&(desc));
+	return texture.create_view(&(wgpu::TextureViewDescriptor::default()));
 }
 
 impl State {
@@ -85,6 +107,7 @@ impl State {
 		let plane_buffer = device.create_buffer_init(
 			&(wgpu::util::BufferInitDescriptor {
 				label: Some("plane_buffer"),
+				usage: wgpu::BufferUsages::VERTEX,
 				contents: bytemuck::cast_slice(&[
 					Vertex { position: [0.0, 0.0, 0.0], color: [0.0, 1.0, 1.0] }, // top
 					Vertex { position: [5.0, 0.0, -5.0], color: [0.0, 1.0, 0.0] }, // left
@@ -94,9 +117,14 @@ impl State {
 					Vertex { position: [5.0, 0.0, -0.0], color: [0.0, 1.0, 0.0] }, // left
 					Vertex { position: [5.0, 0.0, -5.0], color: [0.0, 1.0, 0.0] }, // right
 				]),
-				usage: wgpu::BufferUsages::VERTEX,
 			})
 		);
+		let build_buffer = device.create_buffer(&(wgpu::BufferDescriptor {
+			label: Some("build_buffer"),
+			usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+			size: std::mem::size_of::<Vertex>() as u64 * 6,
+			mapped_at_creation: false,
+		}));
 
 		let camera = Camera::new(size, (0.25, 1.0, 0.0), Deg(0.0), Deg(-90.0));
 
@@ -150,12 +178,18 @@ impl State {
 				topology: wgpu::PrimitiveTopology::TriangleList,
 				strip_index_format: None,
 				front_face: wgpu::FrontFace::Ccw,
-				cull_mode: Some(wgpu::Face::Back),
+				cull_mode: None, //Some(wgpu::Face::Back),
 				polygon_mode: wgpu::PolygonMode::Fill,
 				unclipped_depth: false,
 				conservative: false,
 			},
-			depth_stencil: None,
+			depth_stencil: Some(wgpu::DepthStencilState {
+				format: wgpu::TextureFormat::Depth32Float,
+				depth_write_enabled: true,
+				depth_compare: wgpu::CompareFunction::Less,
+				stencil: wgpu::StencilState::default(),
+				bias: wgpu::DepthBiasState::default(),
+			}),
 			multisample: wgpu::MultisampleState {
 				count: 1,
 				mask: !0,
@@ -163,6 +197,8 @@ impl State {
 			},
 			multiview: None,
 		}));
+
+		let depth_view = depth_view(&(device), &(config));
 
 		let camera_uniform = CameraUniform::new(&(device));
 		camera_uniform.set_view_projection_matrix(&(queue), &(camera));
@@ -193,10 +229,13 @@ impl State {
 			render_pipeline,
 
 			plane_buffer,
+			build_buffer,
 
 			camera,
 			camera_uniform,
 			camera_bind_group,
+
+			depth_view,
 		});
 	}
 
@@ -274,6 +313,7 @@ impl State {
 		self.config.width = new_size.width;
 		self.config.height = new_size.height;
 		self.surface.configure(&(self.device), &(self.config));
+		self.depth_view = depth_view(&(self.device), &(self.config));
 		self.camera.reconfigure(new_size);
 
 		return;
@@ -297,11 +337,34 @@ impl State {
 					store: true,
 				},
 			})],
-			depth_stencil_attachment: None,
+			depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+				view: &(self.depth_view),
+				depth_ops: Some(wgpu::Operations {
+					load: wgpu::LoadOp::Clear(1.0),
+					store: true,
+				}),
+				stencil_ops: None,
+			}),
 		}));
 		render_pass.set_pipeline(&(self.render_pipeline));
 
+		// camera
 		render_pass.set_bind_group(0, &(self.camera_bind_group), &[]);
+
+		// build grid
+		self.queue.write_buffer(&(self.build_buffer), 0, bytemuck::cast_slice(&[
+			Vertex { position: [0.0, 1.0, 0.0], color: [1.0, 0.0, 0.0] },
+			Vertex { position: [0.0, 0.0, 0.0], color: [1.0, 0.0, 0.0] },
+			Vertex { position: [1.0, 0.0, 0.0], color: [1.0, 0.0, 0.0] },
+
+			Vertex { position: [0.0, 1.0, 0.0], color: [1.0, 0.0, 0.0] },
+			Vertex { position: [1.0, 0.0, 0.0], color: [1.0, 0.0, 0.0] },
+			Vertex { position: [1.0, 1.0, 0.0], color: [1.0, 0.0, 0.0] },
+		]));
+		render_pass.set_vertex_buffer(0, self.build_buffer.slice(..));
+		render_pass.draw(0..6, 0..1);
+
+		// plane
 		render_pass.set_vertex_buffer(0, self.plane_buffer.slice(..));
 		let n_vertices = (
 			self.plane_buffer.size() / std::mem::size_of::<Vertex>() as BufferAddress
