@@ -52,6 +52,7 @@ use {
 mod state;
 mod camera;
 mod input;
+mod player;
 
 use input::Input;
 use state::State;

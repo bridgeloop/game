@@ -1,8 +1,8 @@
-use cgmath::Deg;
+use cgmath::{Deg, Vector3, Matrix3, Quaternion, Rad, Point3, EuclideanSpace};
 use winit::window::Window;
 use wgpu::{util::DeviceExt, BufferAddress};
 
-use crate::{camera::*, Input};
+use crate::{camera::*, Input, player::Player};
 
 pub struct State {
 	input: Input,
@@ -26,6 +26,8 @@ pub struct State {
 	camera_bind_group: wgpu::BindGroup,
 
 	depth_view: wgpu::TextureView,
+
+	player: Player,
 }
 
 #[repr(C)]
@@ -178,7 +180,7 @@ impl State {
 				topology: wgpu::PrimitiveTopology::TriangleList,
 				strip_index_format: None,
 				front_face: wgpu::FrontFace::Ccw,
-				cull_mode: None, //Some(wgpu::Face::Back),
+				cull_mode: None, // should use Some(wgpu::Face::Back) once i 3d objects (rather than 2d ones) in space
 				polygon_mode: wgpu::PolygonMode::Fill,
 				unclipped_depth: false,
 				conservative: false,
@@ -214,6 +216,16 @@ impl State {
 			label: Some("camera_bind_group"),
 		}));
 
+		let player = Player {
+			position: (0.0, 0.0, 0.0).into(),
+			buffer: device.create_buffer(&(wgpu::BufferDescriptor {
+				label: Some("player_buffer"),
+				usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+				size: std::mem::size_of::<Vertex>() as u64 * 6,
+				mapped_at_creation: false,
+			})),
+		};
+
 		return Ok(Self {
 			input,
 
@@ -236,6 +248,8 @@ impl State {
 			camera_bind_group,
 
 			depth_view,
+
+			player,
 		});
 	}
 
@@ -321,14 +335,15 @@ impl State {
 
 	pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
 		self.camera_uniform.set_view_projection_matrix(&(self.queue), &(self.camera));
+		
 		let output = self.surface.get_current_texture()?;
 		let view = output.texture.create_view(&(wgpu::TextureViewDescriptor::default()));
 		let mut encoder = self.device.create_command_encoder(&(wgpu::CommandEncoderDescriptor {
-			label: Some("Render Encoder"),
+			label: Some("encoder"),
 		}));
 
 		let mut render_pass = encoder.begin_render_pass(&(wgpu::RenderPassDescriptor {
-			label: Some("Render Pass"),
+			label: Some("render_pass"),
 			color_attachments: &[Some(wgpu::RenderPassColorAttachment {
 				view: &(view),
 				resolve_target: None,
@@ -350,6 +365,51 @@ impl State {
 
 		// camera
 		render_pass.set_bind_group(0, &(self.camera_bind_group), &[]);
+
+		// player
+		fn rot_rect(w: f32, h: f32, r: Rad<f32>) -> [Point3<f32>; 6] {
+			use cgmath::Transform;
+
+			let hw = w / 2.0;
+			let hh = h / 2.0;
+			let mut vertices: [Point3<f32>; 4] = [
+				[0.0, -hh, -hw].into(),
+				[0.0, -hh, hw].into(),
+				[0.0, hh, hw].into(),
+				[0.0, hh, -hw].into(),
+			];
+
+			// Create the rotation matrix around the y-axis
+			let rotation_matrix = cgmath::Matrix4::from_axis_angle(cgmath::Vector3::unit_y(), -r);
+
+			// Apply the rotation to each vertex
+			for (_, v) in vertices.iter_mut().enumerate() {
+				*v = rotation_matrix.transform_point(*v);
+			}
+
+			return [
+				vertices[0],
+				vertices[1],
+				vertices[2],
+				vertices[2],
+				vertices[3],
+				vertices[0],
+			];
+		}
+		// render the player in-front of the camera
+		// this should really be done the other way
+		// around though; the camera should be placed
+		// *behind the player*, and the camera should
+		// be affected by collision to prevent it going
+		// inside of walls, etc.
+		// (the camera should rotate around the player,
+		//  and the player should also rotate so that
+		//  its back is facing the camera.)
+		self.queue.write_buffer(&(&self.player.buffer), 0, bytemuck::cast_slice(&(rot_rect(
+			0.1, 0.2, Rad::from(self.camera.rot_x)
+		).map(|point| Vertex { position: (self.camera.position(1.0) + point.to_vec()).into(), color: [1.0, 1.0, 1.0] }))));
+		render_pass.set_vertex_buffer(0, self.player.buffer.slice(..));
+		render_pass.draw(0..6, 0..1);
 
 		// build grid
 		self.queue.write_buffer(&(self.build_buffer), 0, bytemuck::cast_slice(&[

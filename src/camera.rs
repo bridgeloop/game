@@ -66,6 +66,18 @@ impl Camera {
 
 		return;
 	}
+
+	pub fn position(&self, t: f32) -> Point3<f32> {
+		let (sin_yaw, cos_yaw) = Rad::from(self.rot_x).0.sin_cos();
+		let (sin_pitch, cos_pitch) = Rad::from(self.rot_y).0.sin_cos();
+
+		let target = Vector3::new(
+			cos_pitch * cos_yaw,
+			sin_pitch,
+			cos_pitch * sin_yaw
+		).normalize();
+		return self.position + (target * t);
+	}
 }
 
 pub struct CameraUniform {
