@@ -1,4 +1,4 @@
-use cgmath::{Deg, Vector3, Matrix3, Quaternion, Rad, Point3, EuclideanSpace};
+use cgmath::{Deg, Rad, Point3, EuclideanSpace};
 use winit::window::Window;
 use wgpu::{util::DeviceExt, BufferAddress};
 
@@ -128,7 +128,7 @@ impl State {
 			mapped_at_creation: false,
 		}));
 
-		let camera = Camera::new(size, (0.25, 1.0, 0.0), Deg(0.0), Deg(-90.0));
+		let camera = Camera::new(size, (0.25, 1.0, 0.0), Deg(-90.0));
 
 		let camera_bind_group_layout = &(device.create_bind_group_layout(&(wgpu::BindGroupLayoutDescriptor {
 			entries: &[
@@ -217,7 +217,8 @@ impl State {
 		}));
 
 		let player = Player {
-			position: (0.0, 0.0, 0.0).into(),
+			position: (1.0, 0.0, -1.0).into(),
+			rot_x: Deg(0.0),
 			buffer: device.create_buffer(&(wgpu::BufferDescriptor {
 				label: Some("player_buffer"),
 				usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
@@ -396,7 +397,7 @@ impl State {
 				vertices[0],
 			];
 		}
-		// render the player in-front of the camera
+		// (USED TO) render the player in-front of the camera
 		// this should really be done the other way
 		// around though; the camera should be placed
 		// *behind the player*, and the camera should
@@ -405,9 +406,9 @@ impl State {
 		// (the camera should rotate around the player,
 		//  and the player should also rotate so that
 		//  its back is facing the camera.)
-		self.queue.write_buffer(&(&self.player.buffer), 0, bytemuck::cast_slice(&(rot_rect(
-			0.1, 0.2, Rad::from(self.camera.rot_x)
-		).map(|point| Vertex { position: (self.camera.position(1.0) + point.to_vec()).into(), color: [1.0, 1.0, 1.0] }))));
+		self.queue.write_buffer(&(self.player.buffer), 0, bytemuck::cast_slice(&(rot_rect(
+			0.1, 0.2, Rad::from(self.player.rot_x)
+		).map(|point| Vertex { position: (self.player.position + point.to_vec()).into(), color: [1.0, 1.0, 1.0] }))));
 		render_pass.set_vertex_buffer(0, self.player.buffer.slice(..));
 		render_pass.draw(0..6, 0..1);
 
@@ -441,8 +442,11 @@ impl State {
 	}
 
 	pub fn update_camera(&mut self, dt: f32, sf: f32) {
-		self.camera.update_pos(&(self.input), dt);
+		self.player.update_pos(&(self.input), dt);
+		self.player.update_rot(&(self.input), sf);
+
 		self.camera.update_rot(&(self.input), sf);
+		self.camera.update_pos(&(self.player));
 		return;
 	}
 	pub fn process_key(&mut self, key: winit::event::VirtualKeyCode, state: winit::event::ElementState) {
