@@ -21,13 +21,12 @@ pub struct State {
 	plane_buffer: wgpu::Buffer,
 	build_buffer: wgpu::Buffer,
 
+	player: Player,
 	camera: Camera,
 	camera_uniform: CameraUniform,
 	camera_bind_group: wgpu::BindGroup,
 
 	depth_view: wgpu::TextureView,
-
-	player: Player,
 }
 
 #[repr(C)]
@@ -128,7 +127,18 @@ impl State {
 			mapped_at_creation: false,
 		}));
 
-		let camera = Camera::new(size, (0.25, 1.0, 0.0), Deg(-90.0));
+		let player = Player {
+			position: (1.0, 0.25, -1.0).into(),
+			rot_x: Deg(0.0),
+			buffer: device.create_buffer(&(wgpu::BufferDescriptor {
+				label: Some("player_buffer"),
+				usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+				size: std::mem::size_of::<Vertex>() as u64 * 6,
+				mapped_at_creation: false,
+			})),
+		};
+		let mut camera = Camera::new(size, Deg(0.0));
+		camera.update_pos(&(player));
 
 		let camera_bind_group_layout = &(device.create_bind_group_layout(&(wgpu::BindGroupLayoutDescriptor {
 			entries: &[
@@ -216,17 +226,6 @@ impl State {
 			label: Some("camera_bind_group"),
 		}));
 
-		let player = Player {
-			position: (1.0, 0.0, -1.0).into(),
-			rot_x: Deg(0.0),
-			buffer: device.create_buffer(&(wgpu::BufferDescriptor {
-				label: Some("player_buffer"),
-				usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-				size: std::mem::size_of::<Vertex>() as u64 * 6,
-				mapped_at_creation: false,
-			})),
-		};
-
 		return Ok(Self {
 			input,
 
@@ -244,13 +243,12 @@ impl State {
 			plane_buffer,
 			build_buffer,
 
+			player,
 			camera,
 			camera_uniform,
 			camera_bind_group,
 
 			depth_view,
-
-			player,
 		});
 	}
 
@@ -407,7 +405,7 @@ impl State {
 		//  and the player should also rotate so that
 		//  its back is facing the camera.)
 		self.queue.write_buffer(&(self.player.buffer), 0, bytemuck::cast_slice(&(rot_rect(
-			0.1, 0.2, Rad::from(self.player.rot_x)
+			0.2, 0.5, Rad::from(self.player.rot_x)
 		).map(|point| Vertex { position: (self.player.position + point.to_vec()).into(), color: [1.0, 1.0, 1.0] }))));
 		render_pass.set_vertex_buffer(0, self.player.buffer.slice(..));
 		render_pass.draw(0..6, 0..1);

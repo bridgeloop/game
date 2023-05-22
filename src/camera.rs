@@ -1,11 +1,10 @@
 use cgmath::{Vector3, Point3, InnerSpace, Deg, Rad, Matrix4};
-
 use crate::{input::Input, player::Player};
 
 #[derive(Debug)]
 pub struct Camera {
-	pub position: Point3<f32>,
-	pub target: Point3<f32>,
+	pub position: Option<Point3<f32>>,
+	pub target: Option<Point3<f32>>,
 
 	pub rot_y: Deg<f32>,
 
@@ -16,21 +15,17 @@ pub struct Camera {
 }
 
 fn pitch_clamp(pitch: f32) -> Deg<f32> {
-	const PITCH_LIM: f32 = 90.0 - 0.0001;
+	const PITCH_LIM: f32 = 90.0 - (0.0001 * 10.0);
 	return Deg(pitch.clamp(-PITCH_LIM, PITCH_LIM));
 }
 impl Camera {
-	pub fn new<
-		V: Into<Point3<f32>>,
-	>(
+	pub fn new(
 		dimensions: winit::dpi::PhysicalSize<u32>,
-
-		position: V,
 		rot_y: Deg<f32>,
 	) -> Self {
 		return Self {
-			position: position.into(),
-			target: (0.0, 0.0, 0.0).into(),
+			position: None,
+			target: None,
 			rot_y: pitch_clamp(rot_y.0),
 
 			aspect: dimensions.width as f32 / dimensions.height as f32,
@@ -46,7 +41,8 @@ impl Camera {
 	}
 
 	pub fn update_pos(&mut self, player: &Player) {
-		self.target = player.position;
+		let mut target = player.position + (player.forward_right().1 * (0.1 /* player half width */ + 0.05 /* additional offset */));
+		target.y += 0.25; // player half height
 
 		let (sin_yaw, cos_yaw) = Rad::from(player.rot_x).0.sin_cos();
 		let (sin_pitch, cos_pitch) = Rad::from(self.rot_y).0.sin_cos();
@@ -57,7 +53,8 @@ impl Camera {
 			cos_pitch * sin_yaw
 		).normalize();
 
-		self.position = self.target - v;
+		self.position = Some(target - v);
+		self.target = Some(target);
 
 		return;
 	}
@@ -105,7 +102,7 @@ impl<'a> CameraUniform {
 			cos_pitch * sin_yaw
 		).normalize();*/
 
-        let view = Matrix4::look_to_rh(camera.position, camera.target - camera.position, Vector3::unit_y());
+        let view = Matrix4::look_to_rh(camera.position.unwrap(), camera.target.unwrap() - camera.position.unwrap(), Vector3::unit_y());
 		let proj = cgmath::perspective(camera.fovy, camera.aspect, camera.znear, camera.zfar);
 		let transformed_proj: [[f32; 4]; 4] = (Self::OPENGL_TO_WGPU_MATRIX * proj * view).into();
 		queue.write_buffer(&(self.buffer), 0, bytemuck::cast_slice(&(transformed_proj)));
