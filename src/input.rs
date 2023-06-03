@@ -1,4 +1,4 @@
-use winit::event::{VirtualKeyCode, ElementState};
+use winit::{event::ElementState, keyboard::KeyCode};
 
 #[derive(Debug)]
 pub struct Input {
@@ -28,25 +28,25 @@ impl Input {
 		};
 	}
 
-	pub fn process_key(&mut self, key: VirtualKeyCode, state: ElementState) {
+	pub fn process_key(&mut self, key: KeyCode, state: ElementState) {
 		let amount = if state == ElementState::Pressed { 1.0 } else { 0.0 };
 		match key {
-			VirtualKeyCode::I | VirtualKeyCode::Up => {
+			KeyCode::KeyI => {
 				self.amount_forward = amount;
 			}
-			VirtualKeyCode::J | VirtualKeyCode::Left => {
+			KeyCode::KeyJ => {
 				self.amount_left = amount;
 			}
-			VirtualKeyCode::K | VirtualKeyCode::Down => {
+			KeyCode::KeyK => {
 				self.amount_backward = amount;
 			}
-			VirtualKeyCode::L | VirtualKeyCode::Right => {
+			KeyCode::KeyL => {
 				self.amount_right = amount;
 			}
-			VirtualKeyCode::Space => {
+			KeyCode::Space => {
 				self.amount_up = amount;
 			}
-			VirtualKeyCode::Semicolon => {
+			KeyCode::Semicolon => {
 				self.amount_down = amount;
 			}
 			_ => (),

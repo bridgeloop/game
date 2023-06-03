@@ -5,7 +5,7 @@ use wgpu::{util::DeviceExt, BufferAddress};
 use crate::{camera::*, Input, player::Player};
 
 pub struct State {
-	input: Input,
+	pub input: Input,
 
 	window: Window,
 	size: winit::dpi::PhysicalSize<u32>,
@@ -448,13 +448,13 @@ impl State {
 		self.camera.update_pos(&(self.player));
 		return;
 	}
-	pub fn process_key(&mut self, key: winit::event::VirtualKeyCode, state: winit::event::ElementState) {
+	pub fn process_key(&mut self, key: winit::keyboard::KeyCode, state: winit::event::ElementState) {
 		return self.input.process_key(key, state);
 	}
 	pub fn add_mouse_motion(&mut self, delta: (f64, f64)) {
-		// kinda cringe
-		let (x, y) = self.input.mouse_moved;
-		return self.input.set_mouse_motion((x as f64 + delta.0, y as f64 + delta.1));
+		self.input.mouse_moved.0 += delta.0 as f32;
+		self.input.mouse_moved.1 += delta.1 as f32;
+		return;
 	}
 	pub fn set_mouse_motion(&mut self, delta: (f64, f64)) {
 		return self.input.set_mouse_motion(delta);

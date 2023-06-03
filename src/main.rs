@@ -45,7 +45,8 @@ use {
 	winit::{
 		event_loop::{ControlFlow, EventLoop},
 		window::WindowBuilder,
-		event::{VirtualKeyCode, ElementState, WindowEvent}
+		event::{ElementState, WindowEvent},
+		keyboard::KeyCode,
 	},
 };
 
@@ -59,7 +60,7 @@ use state::State;
 
 fn handle_window_event(state: &mut State, event: WindowEvent) -> ControlFlow {
 	use WindowEvent::{*, KeyboardInput as KeyboardInputEvent};
-	use winit::event::{KeyboardInput, MouseButton};
+	use winit::event::{KeyEvent, MouseButton};
 
 	match event {
 		MouseInput { state: elem_state, button, .. } => {
@@ -86,15 +87,15 @@ fn handle_window_event(state: &mut State, event: WindowEvent) -> ControlFlow {
 		}
 
 		KeyboardInputEvent {
-			input:
-				KeyboardInput {
-					virtual_keycode: Some(key),
+			event:
+				KeyEvent {
+					physical_key: key,
 					state: elem_state,
 					..
 				},
 			..
 		} => match key {
-			VirtualKeyCode::Escape if elem_state == ElementState::Pressed => {
+			KeyCode::Escape if elem_state == ElementState::Pressed => {
 				// toggle fullscreen
 				state.set_fullscreen(!state.is_fullscreen());
 			}
@@ -116,13 +117,14 @@ fn real_main() -> Result<(), &'static str> {
 		.map_err(|_| "failed to create window")?;
 	let window_id = window.id();
 
-	let mut state = State::new(window, Input::new(1.0, 7368.0))?;
+	let mut state = State::new(window, Input::new(1.0, 9.21 * 800.0))?;
 
 	let mut total_elapsed = 0.0;
 	let mut frames = 0;
 
 	let mut prev_render = Instant::now();
 
+	//let mut c = 0.0;
 	event_loop.run(move |event, _, flow| {
 		use winit::event::{Event::*, DeviceEvent::MouseMotion};
 		*flow = ControlFlow::Poll;
@@ -136,7 +138,13 @@ fn real_main() -> Result<(), &'static str> {
 			DeviceEvent {
 				event: MouseMotion { delta, }, ..
 			} if state.is_focused() => {
+				// https://github.com/rust-windowing/winit/issues/2846
 				state.add_mouse_motion(delta);
+				/*c += value.abs();
+				while c > 800.0 {
+					println!("inch");
+					c -= 800.0;
+				}*/
 			}
 
 			MainEventsCleared => {
