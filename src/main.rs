@@ -7,7 +7,7 @@ i fucking hate everything
 but i mean whatever
 mouse input is not continuous so i don't think that delta time should be a factor in rotating the camera
 (whereas keydown input is continuous)
-i'm not sure whether mouse_x = mouse_delta.x or mouse_x += mouse_delta.x is correct
+~~i'm not sure whether mouse_x = mouse_delta.x or mouse_x += mouse_delta.x is correct~~ += is correct to keep sensitivity consistent
 but mousemotion can be fired multiple times per frame
 so it's not like they're doing the same thing
 i think i'll actually have to read winit's code for this one
@@ -136,7 +136,7 @@ fn real_main() -> Result<(), &'static str> {
 			DeviceEvent {
 				event: MouseMotion { delta, }, ..
 			} if state.is_focused() => {
-				state.process_mouse_motion(delta);
+				state.add_mouse_motion(delta);
 			}
 
 			MainEventsCleared => {
@@ -156,7 +156,7 @@ fn real_main() -> Result<(), &'static str> {
 					interpolate -= sf;
 				}
 				state.update_camera(elapsed, interpolate);
-				state.process_mouse_motion((0.0, 0.0));
+				state.set_mouse_motion((0.0, 0.0));
 
 				state.window().request_redraw();
 			}

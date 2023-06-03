@@ -54,7 +54,7 @@ impl Input {
 		return;
 	}
 
-	pub fn process_mouse_motion(&mut self, (dx, dy): (f64, f64)) {
+	pub fn set_mouse_motion(&mut self, (dx, dy): (f64, f64)) {
 		self.mouse_moved = (dx as f32, dy as f32);
 		return;
 	}

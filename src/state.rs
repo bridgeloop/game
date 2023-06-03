@@ -87,6 +87,7 @@ impl State {
 
 		let config = {
 			let caps = surface.get_capabilities(&(adapter));
+			println!("{caps:?}");
 			wgpu::SurfaceConfiguration {
 				usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
 				format: caps
@@ -450,7 +451,12 @@ impl State {
 	pub fn process_key(&mut self, key: winit::event::VirtualKeyCode, state: winit::event::ElementState) {
 		return self.input.process_key(key, state);
 	}
-	pub fn process_mouse_motion(&mut self, delta: (f64, f64)) {
-		return self.input.process_mouse_motion(delta);
+	pub fn add_mouse_motion(&mut self, delta: (f64, f64)) {
+		// kinda cringe
+		let (x, y) = self.input.mouse_moved;
+		return self.input.set_mouse_motion((x as f64 + delta.0, y as f64 + delta.1));
+	}
+	pub fn set_mouse_motion(&mut self, delta: (f64, f64)) {
+		return self.input.set_mouse_motion(delta);
 	}
 }
