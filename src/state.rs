@@ -379,11 +379,11 @@ impl State {
 				[0.0, hh, -hw].into(),
 			];
 
-			// Create the rotation matrix around the y-axis
+			// create the rotation matrix around the y-axis
 			let rotation_matrix = cgmath::Matrix4::from_axis_angle(cgmath::Vector3::unit_y(), -r);
 
-			// Apply the rotation to each vertex
-			for (_, v) in vertices.iter_mut().enumerate() {
+			// apply the rotation to each vertex
+			for v in vertices.iter_mut() {
 				*v = rotation_matrix.transform_point(*v);
 			}
 
