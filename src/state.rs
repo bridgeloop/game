@@ -410,12 +410,12 @@ impl State {
 		// (the camera should rotate around the player,
 		//  and the player should also rotate so that
 		//  its back is facing the camera.)
-		render_pass.set_pipeline(&(self.render_pipeline));
-		let mesh = &(skin.meshes[1]);
-		render_pass.set_bind_group(1, &(skin.materials[mesh.material].bind_group), &[]);
-		render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-        render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-		render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
+		for mesh in &(skin.meshes) {
+			render_pass.set_bind_group(1, &(skin.materials[mesh.material].bind_group), &[]);
+			render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+	        render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+			render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
+		}
 
 		drop(render_pass);
 
