@@ -1,8 +1,7 @@
-use cgmath::{Deg, Rad, Point3, EuclideanSpace};
+use cgmath::{Deg, Rad, Point3};
 use winit::window::Window;
-use wgpu::{util::DeviceExt, BufferAddress};
 
-use crate::{camera::*, Input, player::Player};
+use crate::{camera::*, Input, player::Player, obj::{self, ModelVertex}};
 
 pub struct State {
 	pub input: Input,
@@ -18,22 +17,14 @@ pub struct State {
 	config: wgpu::SurfaceConfiguration,
 	render_pipeline: wgpu::RenderPipeline,
 
-	plane_buffer: wgpu::Buffer,
-	build_buffer: wgpu::Buffer,
-
 	player: Player,
 	camera: Camera,
 	camera_uniform: CameraUniform,
 	camera_bind_group: wgpu::BindGroup,
 
 	depth_view: wgpu::TextureView,
-}
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-	position: [f32; 3],
-	color: [f32; 3],
+	skin: obj::Model,
 }
 
 fn depth_view(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration) -> wgpu::TextureView {
@@ -106,7 +97,7 @@ impl State {
 
 		let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
-		let plane_buffer = device.create_buffer_init(
+		/*let plane_buffer = device.create_buffer_init(
 			&(wgpu::util::BufferInitDescriptor {
 				label: Some("plane_buffer"),
 				usage: wgpu::BufferUsages::VERTEX,
@@ -126,17 +117,11 @@ impl State {
 			usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
 			size: std::mem::size_of::<Vertex>() as u64 * 6,
 			mapped_at_creation: false,
-		}));
+		}));*/
 
 		let player = Player {
 			position: (1.0, 0.25, -1.0).into(),
 			rot_x: Deg(0.0),
-			buffer: device.create_buffer(&(wgpu::BufferDescriptor {
-				label: Some("player_buffer"),
-				usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-				size: std::mem::size_of::<Vertex>() as u64 * 6,
-				mapped_at_creation: false,
-			})),
 		};
 		let mut camera = Camera::new(size, Deg(0.0));
 		camera.update_pos(&(player));
@@ -157,9 +142,49 @@ impl State {
 			label: Some("camera_bind_group_layout"),
 		})));
 
+		let depth_view = depth_view(&(device), &(config));
+
+		let camera_uniform = CameraUniform::new(&(device));
+		camera_uniform.set_view_projection_matrix(&(queue), &(camera));
+
+		let camera_bind_group = device.create_bind_group(&(wgpu::BindGroupDescriptor {
+			layout: camera_bind_group_layout,
+			entries: &[
+				wgpu::BindGroupEntry {
+					binding: 0,
+					resource: camera_uniform.as_entire_binding(),
+				}
+			],
+			label: Some("camera_bind_group"),
+		}));
+
+		let texture_bind_group_layout = &(device.create_bind_group_layout(&(wgpu::BindGroupLayoutDescriptor {
+			entries: &[
+				wgpu::BindGroupLayoutEntry {
+					binding: 0,
+					visibility: wgpu::ShaderStages::FRAGMENT,
+					ty: wgpu::BindingType::Texture {
+						multisampled: false,
+						view_dimension: wgpu::TextureViewDimension::D2,
+						sample_type: wgpu::TextureSampleType::Float { filterable: true },
+					},
+					count: None,
+				},
+				wgpu::BindGroupLayoutEntry {
+					binding: 1,
+					visibility: wgpu::ShaderStages::FRAGMENT,
+					ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+					count: None,
+				},
+			],
+			label: Some("texture_bind_group_layout"),
+		})));
+		
+		let skin = obj::load_obj("models/skin.obj", &(device), &(queue), &(texture_bind_group_layout));
+
 		let render_pipeline_layout = device.create_pipeline_layout(&(wgpu::PipelineLayoutDescriptor {
 			label: Some("render_pipeline_layout"),
-			bind_group_layouts: &[camera_bind_group_layout],
+			bind_group_layouts: &[camera_bind_group_layout, texture_bind_group_layout],
 			push_constant_ranges: &[],
 		}));
 		let render_pipeline = device.create_render_pipeline(&(wgpu::RenderPipelineDescriptor {
@@ -171,9 +196,9 @@ impl State {
 				buffers: &[
 					// index 0
 					wgpu::VertexBufferLayout {
-						array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+						array_stride: std::mem::size_of::<ModelVertex>() as wgpu::BufferAddress,
 						step_mode: wgpu::VertexStepMode::Vertex,
-						attributes: &(wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3]),
+						attributes: &(wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2, 2 => Float32x3]),
 					},
 				],
 			},
@@ -191,7 +216,7 @@ impl State {
 				topology: wgpu::PrimitiveTopology::TriangleList,
 				strip_index_format: None,
 				front_face: wgpu::FrontFace::Ccw,
-				cull_mode: None, // should use Some(wgpu::Face::Back) once i 3d objects (rather than 2d ones) in space
+				cull_mode: None, // should use Some(wgpu::Face::Back) once i have 3d objects (rather than 2d ones) in space
 				polygon_mode: wgpu::PolygonMode::Fill,
 				unclipped_depth: false,
 				conservative: false,
@@ -210,23 +235,6 @@ impl State {
 			},
 			multiview: None,
 		}));
-
-		let depth_view = depth_view(&(device), &(config));
-
-		let camera_uniform = CameraUniform::new(&(device));
-		camera_uniform.set_view_projection_matrix(&(queue), &(camera));
-
-		let camera_bind_group = device.create_bind_group(&(wgpu::BindGroupDescriptor {
-			layout: camera_bind_group_layout,
-			entries: &[
-				wgpu::BindGroupEntry {
-					binding: 0,
-					resource: camera_uniform.as_entire_binding(),
-				}
-			],
-			label: Some("camera_bind_group"),
-		}));
-
 		return Ok(Self {
 			input,
 
@@ -241,15 +249,14 @@ impl State {
 			config,
 			render_pipeline,
 
-			plane_buffer,
-			build_buffer,
-
 			player,
 			camera,
 			camera_uniform,
 			camera_bind_group,
 
 			depth_view,
+
+			skin,
 		});
 	}
 
@@ -367,7 +374,8 @@ impl State {
 		render_pass.set_bind_group(0, &(self.camera_bind_group), &[]);
 
 		// player
-		fn rot_rect(w: f32, h: f32, r: Rad<f32>) -> [Point3<f32>; 6] {
+		let skin = &(self.skin);
+		fn _rot_rect(w: f32, h: f32, r: Rad<f32>) -> [Point3<f32>; 6] {
 			use cgmath::Transform;
 
 			let hw = w / 2.0;
@@ -396,40 +404,18 @@ impl State {
 				vertices[0],
 			];
 		}
-		// (USED TO) render the player in-front of the camera
-		// this should really be done the other way
-		// around though; the camera should be placed
-		// *behind the player*, and the camera should
-		// be affected by collision to prevent it going
-		// inside of walls, etc.
+		// the camera should be placed behind the player,
+		// and it should be affected by collision to prevent
+		// it going inside of walls, etc.
 		// (the camera should rotate around the player,
 		//  and the player should also rotate so that
 		//  its back is facing the camera.)
-		self.queue.write_buffer(&(self.player.buffer), 0, bytemuck::cast_slice(&(rot_rect(
-			0.2, 0.5, Rad::from(self.player.rot_x)
-		).map(|point| Vertex { position: (self.player.position + point.to_vec()).into(), color: [1.0, 1.0, 1.0] }))));
-		render_pass.set_vertex_buffer(0, self.player.buffer.slice(..));
-		render_pass.draw(0..6, 0..1);
-
-		// build grid
-		self.queue.write_buffer(&(self.build_buffer), 0, bytemuck::cast_slice(&[
-			Vertex { position: [0.0, 1.0, 0.0], color: [1.0, 0.0, 0.0] },
-			Vertex { position: [0.0, 0.0, 0.0], color: [1.0, 0.0, 0.0] },
-			Vertex { position: [1.0, 0.0, 0.0], color: [1.0, 0.0, 0.0] },
-
-			Vertex { position: [0.0, 1.0, 0.0], color: [1.0, 0.0, 0.0] },
-			Vertex { position: [1.0, 0.0, 0.0], color: [1.0, 0.0, 0.0] },
-			Vertex { position: [1.0, 1.0, 0.0], color: [1.0, 0.0, 0.0] },
-		]));
-		render_pass.set_vertex_buffer(0, self.build_buffer.slice(..));
-		render_pass.draw(0..6, 0..1);
-
-		// plane
-		render_pass.set_vertex_buffer(0, self.plane_buffer.slice(..));
-		let n_vertices = (
-			self.plane_buffer.size() / std::mem::size_of::<Vertex>() as BufferAddress
-		) as u32;
-		render_pass.draw(0..n_vertices, 0..1);
+		render_pass.set_pipeline(&(self.render_pipeline));
+		let mesh = &(skin.meshes[1]);
+		render_pass.set_bind_group(1, &(skin.materials[mesh.material].bind_group), &[]);
+		render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+		render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);
 
 		drop(render_pass);
 

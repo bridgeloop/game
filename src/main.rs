@@ -54,6 +54,8 @@ mod state;
 mod camera;
 mod input;
 mod player;
+mod texture;
+mod obj;
 
 use input::Input;
 use state::State;

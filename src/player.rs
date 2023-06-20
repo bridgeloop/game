@@ -4,8 +4,6 @@ use crate::input::Input;
 pub struct Player {
 	pub position: Point3<f32>,
 	pub rot_x: Deg<f32>,
-
-	pub buffer: wgpu::Buffer,
 }
 
 impl Player {

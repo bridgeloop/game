@@ -73,11 +73,12 @@ pub struct CameraUniform {
 	buffer: wgpu::Buffer,
 }
 impl<'a> CameraUniform {
+	// https://github.com/sotrh/learn-wgpu/issues/478
 	const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
 		1.0, 0.0, 0.0, 0.0,
 		0.0, 1.0, 0.0, 0.0,
-		0.0, 0.0, 0.5, 0.0,
-		0.0, 0.0, 0.5, 1.0,
+		0.0, 0.0, 0.5, 0.5,
+		0.0, 0.0, 0.0, 1.0,
 	);
 	const SIZE: usize = std::mem::size_of::<[[f32; 4]; 4]>();
 
