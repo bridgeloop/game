@@ -1,7 +1,7 @@
 use cgmath::{Deg, Rad, Point3};
 use winit::window::Window;
 
-use crate::{camera::*, Input, player::Player, obj::{self, ModelVertex}};
+use crate::{camera::*, Input, player::Player, obj::{self, Vertex}};
 
 pub struct State {
 	pub input: Input,
@@ -196,9 +196,9 @@ impl State {
 				buffers: &[
 					// index 0
 					wgpu::VertexBufferLayout {
-						array_stride: std::mem::size_of::<ModelVertex>() as wgpu::BufferAddress,
+						array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
 						step_mode: wgpu::VertexStepMode::Vertex,
-						attributes: &(wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2, 2 => Float32x3]),
+						attributes: &(wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2]),
 					},
 				],
 			},
@@ -216,7 +216,7 @@ impl State {
 				topology: wgpu::PrimitiveTopology::TriangleList,
 				strip_index_format: None,
 				front_face: wgpu::FrontFace::Ccw,
-				cull_mode: None, // should use Some(wgpu::Face::Back) once i have 3d objects (rather than 2d ones) in space
+				cull_mode: Some(wgpu::Face::Back),
 				polygon_mode: wgpu::PolygonMode::Fill,
 				unclipped_depth: false,
 				conservative: false,

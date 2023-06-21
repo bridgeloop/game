@@ -40,6 +40,8 @@ var inches_per_1dg = inches_per_360dg / 360;
 var dots_per_1dg = inches_per_1dg * dpi;
 */
 
+#![feature(slice_as_chunks)]
+
 use {
 	std::{process::ExitCode, time::Instant},
 	winit::{
