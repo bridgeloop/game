@@ -24,13 +24,11 @@ pub struct Vertex {
 }
 
 pub struct Material {
-	pub name: String,
 	pub diffuse_texture: texture::Texture,
 	pub bind_group: wgpu::BindGroup,
 }
 
 pub struct Mesh {
-	pub name: String,
 	pub vertex_buffer: wgpu::Buffer,
 	pub index_buffer: wgpu::Buffer,
 	pub num_elements: u32,
@@ -73,7 +71,6 @@ pub fn load_obj(
 		}));
 
 		materials.push(Material {
-			name: m.name,
 			diffuse_texture,
 			bind_group,
 		})
@@ -97,18 +94,17 @@ pub fn load_obj(
 		}
 
 		let vertex_buffer = device.create_buffer_init(&(wgpu::util::BufferInitDescriptor {
-			label: Some(&(format!("{:?} Vertex Buffer", file_name))),
+			label: Some(&(format!("{:?} vertex buffer", file_name))),
 			contents: bytemuck::cast_slice(&(vertices)),
 			usage: wgpu::BufferUsages::VERTEX,
 		}));
 		let index_buffer = device.create_buffer_init(&(wgpu::util::BufferInitDescriptor {
-			label: Some(&(format!("{:?} Index Buffer", file_name))),
+			label: Some(&(format!("{:?} index buffer", file_name))),
 			contents: bytemuck::cast_slice(&(mesh.indices)),
 			usage: wgpu::BufferUsages::INDEX,
 		}));
 
 		meshes.push(Mesh {
-			name: "x".to_string(),
 			vertex_buffer,
 			index_buffer,
 			num_elements: mesh.indices.len() as u32,
