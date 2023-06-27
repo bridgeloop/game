@@ -1,6 +1,6 @@
 use std::{path::Path, assert_eq};
 
-use crate::texture;
+use crate::texture::Texture;
 use image;
 use wgpu::util::DeviceExt;
 
@@ -11,9 +11,9 @@ fn load_texture(
 	file_name: &str,
 	device: &wgpu::Device,
 	queue: &wgpu::Queue,
-) -> texture::Texture {
+) -> Texture {
 	let bytes = load_bytes(file_name);
-	return texture::Texture::from_image(device, queue, &(image::load_from_memory(&(bytes)).unwrap()), Some(file_name));
+	return Texture::from_image(device, queue, &(image::load_from_memory(&(bytes)).unwrap()), Some(file_name));
 }
 
 #[repr(C)]
@@ -24,7 +24,7 @@ pub struct Vertex {
 }
 
 pub struct Material {
-	pub diffuse_texture: texture::Texture,
+	pub diffuse_texture: Texture,
 	pub bind_group: wgpu::BindGroup,
 }
 
@@ -53,8 +53,12 @@ pub fn load_obj(
 
 	let mut materials = Vec::new();
 	for m in obj_materials.unwrap() {
-		let x = format!("models/ruby/{}", m.diffuse_texture.unwrap()); // fixme
-		let diffuse_texture = load_texture(&(x), device, queue);
+		let diffuse_texture = if let Some(x) = m.diffuse_texture {
+			let x = format!("models/ruby/{}", x); // fixme
+			load_texture(&(x), device, queue)
+		} else {
+			Texture::solid(device, queue, 0xff0000ff, None)
+		};
 		let bind_group = device.create_bind_group(&(wgpu::BindGroupDescriptor {
 			layout,
 			entries: &[

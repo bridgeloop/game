@@ -18,7 +18,7 @@ pub struct State {
 	render_pipeline: wgpu::RenderPipeline,
 
 	player: Player,
-	camera: Camera,
+	pub camera: Camera,
 	camera_uniform: CameraUniform,
 	camera_bind_group: wgpu::BindGroup,
 
@@ -120,8 +120,8 @@ impl State {
 		}));*/
 
 		let player = Player {
-			position: (1.0, 0.25, -1.0).into(),
-			rot_x: Deg(0.0),
+			position: (-0.275, 1.25, -1.0).into(),
+			rot_x: Deg(90.0),
 		};
 		let mut camera = Camera::new(size, Deg(0.0));
 		camera.update_pos(&(player));
@@ -180,7 +180,7 @@ impl State {
 			label: Some("texture_bind_group_layout"),
 		})));
 		
-		let skin = obj::load_obj("models/skin.obj", &(device), &(queue), &(texture_bind_group_layout));
+		let skin = obj::load_obj("models/untitled.obj", &(device), &(queue), &(texture_bind_group_layout));
 
 		let render_pipeline_layout = device.create_pipeline_layout(&(wgpu::PipelineLayoutDescriptor {
 			label: Some("render_pipeline_layout"),
@@ -411,7 +411,9 @@ impl State {
 		//  and the player should also rotate so that
 		//  its back is facing the camera.)
 		for mesh in &(skin.meshes) {
-			render_pass.set_bind_group(1, &(skin.materials[mesh.material].bind_group), &[]);
+			if skin.materials.len() > mesh.material {
+				render_pass.set_bind_group(1, &(skin.materials[mesh.material].bind_group), &[]);
+			}
 			render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
 	        render_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
 			render_pass.draw_indexed(0..mesh.num_elements, 0, 0..1);

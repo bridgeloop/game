@@ -184,6 +184,7 @@ fn real_main() -> Result<(), &'static str> {
 				frames += 1;
 				if total_elapsed >= 1.0 {
 					println!("frames in the past {total_elapsed}s: {frames:?}");
+					println!("camera at {:?}", state.camera.position);
 					frames = 0;
 					total_elapsed = 0.0;
 				}
