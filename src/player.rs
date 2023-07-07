@@ -35,4 +35,11 @@ impl Player {
 
 		return;
 	}
+
+	pub fn adapt_pos_for_camera(&self) -> Point3<f32> {
+		let mut target = self.position;
+		target += self.forward_right().1 * (0.0/* player half width */ + 0.0/* additional offset */);
+
+		return target;
+	}
 }

@@ -1,12 +1,11 @@
-use cgmath::{Vector3, Point3, InnerSpace, Deg, Rad, Matrix4};
-use crate::{input::Input, player::Player};
+use cgmath::{Vector3, Point3, InnerSpace, Deg, Rad, Matrix4, Vector2};
+use crate::input::Input;
 
 #[derive(Debug)]
 pub struct Camera {
 	pub position: Option<Point3<f32>>,
-	pub target: Option<Point3<f32>>,
 
-	pub rot_y: Deg<f32>,
+	pub rot: Vector2<Deg<f32>>,
 
 	aspect: f32,
 	fovy: Deg<f32>,
@@ -15,18 +14,16 @@ pub struct Camera {
 }
 
 fn pitch_clamp(pitch: f32) -> Deg<f32> {
-	const PITCH_LIM: f32 = 90.0 - (0.0001 * 10.0);
+	const PITCH_LIM: f32 = 90.0 - 0.0001;
 	return Deg(pitch.clamp(-PITCH_LIM, PITCH_LIM));
 }
 impl Camera {
 	pub fn new(
-		dimensions: winit::dpi::PhysicalSize<u32>,
-		rot_y: Deg<f32>,
+		dimensions: winit::dpi::PhysicalSize<u32>
 	) -> Self {
 		return Self {
 			position: None,
-			target: None,
-			rot_y: pitch_clamp(rot_y.0),
+			rot: (Deg(90.0 /* 90deg because position updates use player's forward_right, where player's rot_x is 90deg */), Deg(0.0)).into(),
 
 			aspect: dimensions.width as f32 / dimensions.height as f32,
 			fovy: Deg(40.0),
@@ -40,30 +37,17 @@ impl Camera {
 		return;
 	}
 
-	pub fn update_pos(&mut self, player: &Player) {
-		let mut target = player.position + (player.forward_right().1 * (0.1 /* player half width */ + 0.05 /* additional offset */));
-		target.y += 0.25; // player half height
-
-		let (sin_yaw, cos_yaw) = Rad::from(player.rot_x).0.sin_cos();
-		let (sin_pitch, cos_pitch) = Rad::from(self.rot_y).0.sin_cos();
-
-		let v = Vector3::new(
-			cos_pitch * cos_yaw,
-			sin_pitch,
-			cos_pitch * sin_yaw
-		).normalize();
-
-		self.position = Some(target - v);
-		self.target = Some(target);
-
+	pub fn set_pos(&mut self, pos: Point3<f32>) {
+		self.position = Some(pos);
 		return;
 	}
 
 	pub fn update_rot(&mut self, input: &Input, sf: f32) {
 		// doesn't need dt because the input is not continuous.
-		let (_, dy) = input.mouse_moved;
+		let (dx, dy) = input.mouse_moved;
 
-		self.rot_y = pitch_clamp(self.rot_y.0 + ((-dy / input.dots_per_deg) * sf));
+		self.rot.x += Deg((dx / input.dots_per_deg) * sf);
+		self.rot.y = pitch_clamp(self.rot.y.0 + (-dy / input.dots_per_deg * sf));
 
 		return;
 	}
@@ -95,15 +79,15 @@ impl<'a> CameraUniform {
 		};
 	}
 	pub fn set_view_projection_matrix(&self, queue: &wgpu::Queue, camera: &Camera) {
-		/*let (sin_yaw, cos_yaw) = Rad::from(camera.rot.x).0.sin_cos();
+		let (sin_yaw, cos_yaw) = Rad::from(camera.rot.x).0.sin_cos();
 		let (sin_pitch, cos_pitch) = Rad::from(camera.rot.y).0.sin_cos();
 		let target = Vector3::new(
 			cos_pitch * cos_yaw,
 			sin_pitch,
 			cos_pitch * sin_yaw
-		).normalize();*/
+		).normalize();
 
-        let view = Matrix4::look_to_rh(camera.position.unwrap(), camera.target.unwrap() - camera.position.unwrap(), Vector3::unit_y());
+        let view = Matrix4::look_to_rh(camera.position.unwrap(), target, Vector3::unit_y());
 		let proj = cgmath::perspective(camera.fovy, camera.aspect, camera.znear, camera.zfar);
 		let transformed_proj: [[f32; 4]; 4] = (Self::OPENGL_TO_WGPU_MATRIX * proj * view).into();
 		queue.write_buffer(&(self.buffer), 0, bytemuck::cast_slice(&(transformed_proj)));

@@ -123,8 +123,8 @@ impl State {
 			position: (-0.275, 1.25, -1.0).into(),
 			rot_x: Deg(90.0),
 		};
-		let mut camera = Camera::new(size, Deg(0.0));
-		camera.update_pos(&(player));
+		let mut camera = Camera::new(size);
+		camera.set_pos(player.adapt_pos_for_camera());
 
 		let camera_bind_group_layout = &(device.create_bind_group_layout(&(wgpu::BindGroupLayoutDescriptor {
 			entries: &[
@@ -180,7 +180,7 @@ impl State {
 			label: Some("texture_bind_group_layout"),
 		})));
 		
-		let skin = obj::load_obj("models/untitled.obj", &(device), &(queue), &(texture_bind_group_layout));
+		let skin = obj::load_obj("models/skin.obj", &(device), &(queue), &(texture_bind_group_layout));
 
 		let render_pipeline_layout = device.create_pipeline_layout(&(wgpu::PipelineLayoutDescriptor {
 			label: Some("render_pipeline_layout"),
@@ -433,7 +433,7 @@ impl State {
 		self.player.update_rot(&(self.input), sf);
 
 		self.camera.update_rot(&(self.input), sf);
-		self.camera.update_pos(&(self.player));
+		self.camera.set_pos(self.player.adapt_pos_for_camera());
 		return;
 	}
 	pub fn process_key(&mut self, key: winit::keyboard::KeyCode, state: winit::event::ElementState) {
